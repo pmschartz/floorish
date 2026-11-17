@@ -122,3 +122,12 @@ describe("scoreFit", () => {
     expect(scoreFit({ widthIn: 30, depthIn: 12, heightIn: null }, t).fitNote).toContain("6\" narrower");
   });
 });
+
+describe("sectional outlines", () => {
+  it("U outline area is the box minus the opening", async () => {
+    const { outlineLocal, armDepth } = await import("./geometry");
+    const t = armDepth("U", 132, 96);
+    expect(t).toBe(38);
+    expect(polygonArea(outlineLocal("U", 132, 96))).toBeCloseTo(132 * 96 - (132 - 2 * t) * (96 - t));
+  });
+});

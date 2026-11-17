@@ -10,6 +10,7 @@ function ShapeIcon({ shape }: { shape: CatalogEntry["shape"] }) {
     <svg width="18" height="18" viewBox="0 0 18 18" aria-hidden>
       {shape === "circle" ? <circle cx="9" cy="9" r="6.5" {...common} />
         : shape === "L" ? <path d="M2.5 2.5h13v5h-8v8h-5z" {...common} />
+        : shape === "U" ? <path d="M2.5 2.5h13v13h-4v-9h-5v9h-4z" {...common} />
         : shape === "door" ? <><path d="M3 15V3" {...common} /><path d="M3 3a12 12 0 0 1 12 12" {...common} strokeDasharray="2 2" /></>
         : shape === "window" ? <><rect x="2" y="7" width="14" height="4" {...common} /><path d="M2 9h14" {...common} /></>
         : <rect x="2.5" y="4.5" width="13" height="9" rx="1" {...common} />}

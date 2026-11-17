@@ -75,6 +75,63 @@ export function itemCorners(item: Pick<Item, "x" | "y" | "rotation" | "width" | 
   return rectLocal(-hw, -hd, hw, hd).map((p) => toWorld(item, p));
 }
 
+/**
+ * Seat depth of the arms of L- and U-shaped sectionals (inches), capped so the
+ * shape still reads as an L/U when someone shrinks it.
+ */
+export function armDepth(shape: Item["shape"], w: number, d: number): number {
+  return shape === "U" ? Math.min(38, w * 0.3, d * 0.5) : Math.min(38, Math.min(w, d) * 0.5);
+}
+
+/**
+ * Outline of a shape in local inches, centered on 0,0.
+ * L: long run across the back, return down the left side.
+ * U: run across the back with returns down both sides, open toward the front.
+ */
+export function outlineLocal(shape: Item["shape"], w: number, d: number): Point[] {
+  const hw = w / 2, hd = d / 2, t = armDepth(shape, w, d);
+  if (shape === "L") {
+    return [
+      { x: -hw, y: -hd }, { x: hw, y: -hd }, { x: hw, y: -hd + t },
+      { x: -hw + t, y: -hd + t }, { x: -hw + t, y: hd }, { x: -hw, y: hd },
+    ];
+  }
+  if (shape === "U") {
+    return [
+      { x: -hw, y: -hd }, { x: hw, y: -hd }, { x: hw, y: hd }, { x: hw - t, y: hd },
+      { x: hw - t, y: -hd + t }, { x: -hw + t, y: -hd + t }, { x: -hw + t, y: hd }, { x: -hw, y: hd },
+    ];
+  }
+  return rectLocal(-hw, -hd, hw, hd);
+}
+
+/**
+ * The item's footprint as convex pieces in plan inches, so overlap tests respect
+ * the open middle of L- and U-shapes (a coffee table can sit inside a U).
+ */
+export function itemParts(item: Pick<Item, "x" | "y" | "rotation" | "width" | "depth" | "shape">): Point[][] {
+  const hw = item.width / 2, hd = item.depth / 2;
+  const t = armDepth(item.shape, item.width, item.depth);
+  let parts: Point[][];
+  if (item.shape === "L") {
+    parts = [rectLocal(-hw, -hd, hw, -hd + t), rectLocal(-hw, -hd + t, -hw + t, hd)];
+  } else if (item.shape === "U") {
+    parts = [
+      rectLocal(-hw, -hd, hw, -hd + t),
+      rectLocal(-hw, -hd + t, -hw + t, hd),
+      rectLocal(hw - t, -hd + t, hw, hd),
+    ];
+  } else {
+    parts = [rectLocal(-hw, -hd, hw, hd)];
+  }
+  return parts.map((p) => p.map((pt) => toWorld(item, pt)));
+}
+
+/** True if any convex piece of `a` overlaps any convex piece of `b`. */
+export function partsOverlap(a: Point[][], b: Point[][], eps = EPS): boolean {
+  return a.some((pa) => b.some((pb) => convexOverlap(pa, pb, eps)));
+}
+
 export type Side = "front" | "back" | "left" | "right";
 
 /** The rectangle of floor that must stay clear on one side of an item. */

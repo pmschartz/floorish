@@ -1,6 +1,6 @@
 import type { Item, Point, Room } from "../../shared/schemas";
 import { PASSIVE_CATEGORIES } from "../catalog/furniture";
-import { bbox, convexOverlap, distPointSegment, doorSwing, itemCorners, polygonInside } from "../model/geometry";
+import { bbox, distPointSegment, doorSwing, itemCorners, itemParts, partsOverlap, polygonInside } from "../model/geometry";
 
 export interface Spot {
   x: number;
@@ -15,10 +15,10 @@ export interface Spot {
 export function findOpenSpot(room: Room, items: Item[], w: number, d: number, step = 6): Spot | null {
   if (room.polygon.length < 3) return null;
   const b = bbox(room.polygon);
-  const blockers: Point[][] = [];
+  const blockers: Point[][][] = [];
   for (const it of items) {
-    if (it.shape === "door") blockers.push(doorSwing(it));
-    else if (!PASSIVE_CATEGORIES.has(it.category)) blockers.push(itemCorners(it));
+    if (it.shape === "door") blockers.push([doorSwing(it)]);
+    else if (!PASSIVE_CATEGORIES.has(it.category)) blockers.push(itemParts(it));
   }
   const edges = room.polygon.map((p, i) => [p, room.polygon[(i + 1) % room.polygon.length]] as const);
   const wallDist = (pts: Point[]) => Math.min(...pts.flatMap((p) => edges.map(([a, c]) => distPointSegment(p, a, c))));
@@ -31,7 +31,7 @@ export function findOpenSpot(room: Room, items: Item[], w: number, d: number, st
         const cand = { x, y, rotation, width: w, depth: d };
         const c = itemCorners(cand);
         if (!polygonInside(c, room.polygon)) continue;
-        if (blockers.some((bl) => convexOverlap(c, bl))) continue;
+        if (blockers.some((bl) => partsOverlap([c], bl))) continue;
         const score = wallDist(c);
         if (!best || score < best.score) best = { spot: { x: Math.round(x), y: Math.round(y), rotation }, score };
       }

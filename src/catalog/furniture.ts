@@ -47,6 +47,7 @@ export const CATALOG: CatalogEntry[] = [
   { key: "sofa", label: "Sofa", category: "sofa", group: "Living", shape: "rect", width: 84, depth: 36, height: 34, clearances: front(14, "legroom; coffee tables work best 14–18\" from the sofa", ["coffee table", "rug", "ottoman"]) },
   { key: "loveseat", label: "Loveseat", category: "sofa", group: "Living", shape: "rect", width: 60, depth: 36, height: 34, clearances: front(14, "legroom", ["coffee table", "rug", "ottoman"]) },
   { key: "sectional", label: "Sectional (L)", category: "sectional", group: "Living", shape: "L", width: 108, depth: 84, height: 34 },
+  { key: "sectional-u", label: "Sectional (U)", category: "sectional", group: "Living", shape: "U", width: 132, depth: 96, height: 34 },
   { key: "armchair", label: "Armchair", category: "armchair", group: "Living", shape: "rect", width: 32, depth: 34, height: 32 },
   { key: "ottoman", label: "Ottoman", category: "ottoman", group: "Living", shape: "rect", width: 24, depth: 24, height: 17 },
   { key: "coffee-table", label: "Coffee table", category: "coffee table", group: "Living", shape: "rect", width: 48, depth: 24, height: 18 },
@@ -86,6 +87,7 @@ export const CUSTOM_SHAPES: CatalogEntry[] = [
   { key: "custom-rect", label: "Rectangle", category: "", group: "Custom", shape: "rect", width: 36, depth: 24, height: null },
   { key: "custom-circle", label: "Circle", category: "", group: "Custom", shape: "circle", width: 30, depth: 30, height: null },
   { key: "custom-L", label: "L-shape", category: "", group: "Custom", shape: "L", width: 72, depth: 60, height: null },
+  { key: "custom-U", label: "U-shape", category: "", group: "Custom", shape: "U", width: 96, depth: 72, height: null },
 ];
 
 /** Categories offered when labeling a custom shape. */

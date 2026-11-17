@@ -57,7 +57,7 @@ export const ItemSchema = z.object({
   catalogKey: z.string(), // "custom" for user-drawn shapes
   label: z.string(),
   category: z.string(),
-  shape: z.enum(["rect", "circle", "L", "door", "window"]),
+  shape: z.enum(["rect", "circle", "L", "U", "door", "window"]),
   x: z.number(), // center, inches
   y: z.number(),
   width: z.number(),

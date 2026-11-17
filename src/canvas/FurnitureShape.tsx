@@ -3,7 +3,7 @@ import { memo } from "react";
 import { Arc, Ellipse, Group, Line, Rect, Text } from "react-konva";
 import type { Item } from "../../shared/schemas";
 import { STATUS_COLORS } from "../catalog/furniture";
-import { snap } from "../model/geometry";
+import { armDepth, outlineLocal, snap } from "../model/geometry";
 import { formatDims, type UnitSystem } from "../model/units";
 
 interface Props {
@@ -18,11 +18,9 @@ interface Props {
   onChange: (id: string, patch: Partial<Item>) => void;
 }
 
-export function lShapePoints(w: number, d: number): number[] {
-  const t = Math.min(38, Math.min(w, d) * 0.5);
-  const hw = w / 2, hd = d / 2;
-  // Long run across the back, return down the left side.
-  return [-hw, -hd, hw, -hd, hw, -hd + t, -hw + t, -hd + t, -hw + t, hd, -hw, hd];
+/** Outline in canvas pixels for L/U shapes. */
+function outlinePx(item: Item, ppi: number): number[] {
+  return outlineLocal(item.shape, item.width, item.depth).flatMap((p) => [p.x * ppi, p.y * ppi]);
 }
 
 function FurnitureShapeInner({ item, ppi, stageScale, units, selected, issue, draggable, onSelect, onChange }: Props) {
@@ -55,7 +53,9 @@ function FurnitureShapeInner({ item, ppi, stageScale, units, selected, issue, dr
   };
 
   const fontSize = 11 / stageScale;
-  const showLabel = Math.min(w, d) * stageScale > 22;
+  // L/U shapes have an open middle, so the label goes in the back run of seats.
+  const labelH = item.shape === "L" || item.shape === "U" ? armDepth(item.shape, item.width, item.depth) * ppi : d;
+  const showLabel = Math.min(w, labelH) * stageScale > 22;
   const name = item.label || item.category || "Unlabeled";
 
   let body: React.ReactNode;
@@ -64,7 +64,8 @@ function FurnitureShapeInner({ item, ppi, stageScale, units, selected, issue, dr
       body = <Ellipse radiusX={w / 2} radiusY={d / 2} fill={fill} stroke={stroke} strokeWidth={strokeWidth} dash={dash} />;
       break;
     case "L":
-      body = <Line points={lShapePoints(w, d)} closed fill={fill} stroke={stroke} strokeWidth={strokeWidth} dash={dash} />;
+    case "U":
+      body = <Line points={outlinePx(item, ppi)} closed fill={fill} stroke={stroke} strokeWidth={strokeWidth} dash={dash} />;
       break;
     case "door":
       body = (
@@ -121,7 +122,7 @@ function FurnitureShapeInner({ item, ppi, stageScale, units, selected, issue, dr
           x={-w / 2}
           y={-d / 2}
           width={w}
-          height={d}
+          height={labelH}
           align="center"
           verticalAlign="middle"
           fontSize={fontSize}

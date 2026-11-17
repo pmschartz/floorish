@@ -90,3 +90,34 @@ describe("findOpenSpot", () => {
     expect(findOpenSpot(room, [], 200, 200)).toBeNull();
   });
 });
+
+describe("U-shaped sectional", () => {
+  // 132" × 96" U centered in the 12' room: back run across y 24–62, arms down to y 120.
+  const sectional = () => item({ category: "sectional", catalogKey: "sectional-u", shape: "U", x: 72, y: 72, width: 132, depth: 96 });
+
+  it("lets a coffee table sit in the open middle", () => {
+    const table = item({ category: "coffee table", x: 72, y: 92, width: 48, depth: 24 });
+    expect(runLayoutChecks([sectional(), table], [room])).toEqual([]);
+  });
+
+  it("flags a table that hits an arm", () => {
+    const table = item({ category: "coffee table", x: 116, y: 92, width: 48, depth: 24 });
+    expect(runLayoutChecks([sectional(), table], [room]).filter((i) => i.kind === "overlap")).toHaveLength(1);
+  });
+
+  it("follows rotation (opening facing up)", () => {
+    const s = { ...sectional(), rotation: 180 };
+    const inOpening = item({ category: "coffee table", x: 72, y: 52, width: 48, depth: 24 });
+    const onBack = item({ category: "side table", x: 72, y: 110, width: 20, depth: 20 });
+    const issues = runLayoutChecks([s, inOpening, onBack], [room]).filter((i) => i.kind === "overlap");
+    expect(issues).toHaveLength(1);
+    expect(issues[0].itemIds).toContain(onBack.id);
+  });
+
+  it("auto-placement can use the opening", () => {
+    const spot = findOpenSpot(room, [sectional()], 40, 20)!;
+    expect(spot).not.toBeNull();
+    const placed = item({ category: "ottoman", ...spot, width: 40, depth: 20 });
+    expect(runLayoutChecks([sectional(), placed], [room]).filter((i) => i.kind === "overlap")).toHaveLength(0);
+  });
+});
