@@ -103,6 +103,14 @@ function signedArea(pts: Point[]) {
 export function snapRoomEdges(poly: Point[], m: Mask, o: SnapOpts): SnappedEdge[] {
   const cw = signedArea(poly) >= 0 ? 1 : -1; // clockwise on screen (y down)
   const tan3 = Math.tan((3 * Math.PI) / 180);
+  let minX = Infinity, maxX = -Infinity, minY = Infinity, maxY = -Infinity;
+  for (const p of poly) {
+    minX = Math.min(minX, p.x); maxX = Math.max(maxX, p.x);
+    minY = Math.min(minY, p.y); maxY = Math.max(maxY, p.y);
+  }
+  // A wall that would pull an edge deep into its own room belongs to something else (a
+  // neighbour's wall behind a closet's sliding door, say). Never let a snap collapse a room.
+  const maxInward = (extent: number) => Math.max(3, extent * 0.3);
   return poly.map((p, i) => {
     const q = poly[(i + 1) % poly.length];
     const dx = q.x - p.x, dy = q.y - p.y;
@@ -111,16 +119,18 @@ export function snapRoomEdges(poly: Point[], m: Mask, o: SnapOpts): SnappedEdge[
       const inward = (cw * Math.sign(dx)) as 1 | -1; // interior is below (+y) for a left→right edge of a cw polygon
       const band = findWallBand(m, "h", y, p.x, q.x, o);
       const span: [number, number] = [Math.min(p.x, q.x), Math.max(p.x, q.x)];
-      if (!band) return { axis: "h", coord: y, inward, wall: null, span };
-      return { axis: "h", coord: inward > 0 ? band.hi + 1 : band.lo, inward, wall: band.hi - band.lo + 1, span };
+      const coord = band ? (inward > 0 ? band.hi + 1 : band.lo) : y;
+      if (!band || inward * (coord - y) > maxInward(maxY - minY)) return { axis: "h", coord: y, inward, wall: null, span };
+      return { axis: "h", coord, inward, wall: band.hi - band.lo + 1, span };
     }
     if (Math.abs(dx) <= Math.abs(dy) * tan3 && dy !== 0) {
       const x = (p.x + q.x) / 2;
       const inward = (-cw * Math.sign(dy)) as 1 | -1; // interior is left (-x) for a top→bottom edge of a cw polygon
       const band = findWallBand(m, "v", x, p.y, q.y, o);
       const span: [number, number] = [Math.min(p.y, q.y), Math.max(p.y, q.y)];
-      if (!band) return { axis: "v", coord: x, inward, wall: null, span };
-      return { axis: "v", coord: inward > 0 ? band.hi + 1 : band.lo, inward, wall: band.hi - band.lo + 1, span };
+      const coord = band ? (inward > 0 ? band.hi + 1 : band.lo) : x;
+      if (!band || inward * (coord - x) > maxInward(maxX - minX)) return { axis: "v", coord: x, inward, wall: null, span };
+      return { axis: "v", coord, inward, wall: band.hi - band.lo + 1, span };
     }
     return { axis: null, coord: 0, inward: 1, wall: null, span: [0, 0] };
   });

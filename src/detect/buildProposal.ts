@@ -1,6 +1,6 @@
 import type { Item, Point, RawDetection, Room } from "../../shared/schemas";
 import { FIXTURE_LABEL } from "../catalog/furniture";
-import { bbox, pointInPolygon } from "../model/geometry";
+import { bbox, pointInPolygon, toWorld } from "../model/geometry";
 import {
   alignOpenEdges,
   defaultOpts,
@@ -28,6 +28,8 @@ export interface Proposal {
   correctedDoors: number; // swings read from the drawing that differ from Claude's reading
   addedDoors: number; // doors and openings found by scanning the walls
   addedWindows: number; // windows found by scanning exterior walls
+  /** For each door that swings into space no room covers, the room on its other side. */
+  orphanDoorsNear: string[];
 }
 
 export const TYPICAL_DOOR_IN = 32;
@@ -401,6 +403,22 @@ export function buildProposal(raw: RawDetection, factor: number, mask: Mask, pla
     }
   }
 
+  // Doors that swing into space no room covers: a room outline is missing a corner (a nook
+  // in front of a door, say). Flag them so the review can say where to look.
+  const roomsIn = rooms.map((r) => r.polygon);
+  const orphanDoorsNear: string[] = [];
+  for (const d of openings) {
+    if (d.shape !== "door") continue;
+    const front = toWorld(d, { x: 0, y: d.depth / 2 + d.width * 0.4 });
+    if (roomsIn.some((poly) => pointInPolygon(front, poly, 0))) continue;
+    // Nothing further out either: an exterior door swinging outdoors, not a gap between rooms.
+    const further = toWorld(d, { x: 0, y: d.depth / 2 + d.width * 1.6 });
+    if (!roomsIn.some((poly) => pointInPolygon(further, poly, 0))) continue;
+    const back = toWorld(d, { x: 0, y: -d.depth / 2 - 6 });
+    const near = rooms.find((r) => pointInPolygon(back, r.polygon, 0));
+    orphanDoorsNear.push(near?.name ?? "a door");
+  }
+
   // Fixtures: push the wall side flush against the nearest wall face, then orient so the
   // fixture's front faces away from that wall.
   const fixtures: NewItem[] = [];
@@ -441,7 +459,7 @@ export function buildProposal(raw: RawDetection, factor: number, mask: Mask, pla
 
   return {
     ppi, ppiSource, scaleDisagreement, wallThickness, rooms, openings, fixtures,
-    notes: raw.notes, correctedDoors: corrected, addedDoors: added, addedWindows,
+    notes: raw.notes, correctedDoors: corrected, addedDoors: added, addedWindows, orphanDoorsNear,
   };
 }
 

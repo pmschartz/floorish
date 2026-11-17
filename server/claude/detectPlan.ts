@@ -9,6 +9,8 @@ The app snaps your geometry to the walls it finds in the pixels, so be close (wi
 Rooms
 - One entry per labeled space, including halls, closets, pantries, laundry, stairs landings, garage, and foyer. Skip outdoor areas unless they are labeled (porch, deck).
 - polygon: the room's interior outline, tracing the inside faces of its walls, corners in clockwise order. Use only horizontal and vertical edges unless a wall is really angled. An L-shaped room gets 6 corners.
+- Follow every jog in the walls. If part of a room reaches into a nook (for example the space in front of a bedroom door beside a closet), the outline includes it, with as many corners as it takes. Every door should open into a room you listed.
+- Closets get their own entry even when unlabeled; the room in front of a closet stops at the closet's front.
 - Open-plan areas with no wall between them (e.g. kitchen, living, dining): split them where the labels, flooring, or counters suggest, using straight edges. Rooms must not overlap.
 - type: pick the closest; use "closet" for W.I.C. and pantries, "entry" for foyers, "other" for stairs or anything else.
 - labeledWidthIn / labeledDepthIn: if the plan prints the room's size (e.g. 14'-0" x 12'-0"), the horizontal (left-right) and vertical (top-bottom) sizes in inches. Otherwise null. Never guess.

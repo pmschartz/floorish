@@ -129,6 +129,12 @@ export function DetectPanel() {
         )}
       </div>
 
+      {p.orphanDoorsNear.length > 0 && (
+        <p className="small notice">
+          {p.orphanDoorsNear.length === 1 ? "A door swings" : `${p.orphanDoorsNear.length} doors swing`} into space that isn't part of any room
+          (off {[...new Set(p.orphanDoorsNear)].join(", ")}). A room outline is probably missing a corner there; try Auto-detect again, or untick that room and trace it yourself.
+        </p>
+      )}
       {p.notes && <p className="muted small">Claude's note: {p.notes}</p>}
 
       <div className="row">

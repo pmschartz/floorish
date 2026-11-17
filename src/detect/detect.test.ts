@@ -236,6 +236,16 @@ describe("reading doors from their arcs", () => {
     expect(p.addedDoors).toBe(1); // only the bottom-wall door is new; the moved one isn't double-counted
   });
 
+  it("warns when a door swings into space no room covers", () => {
+    const m = withDoors();
+    // B's outline stops 34px short of the shared wall, leaving a nook the door swings into.
+    const shortB = { ...raw.rooms[1], polygon: [{ x: 120, y: 26 }, { x: 174, y: 26 }, { x: 175, y: 74 }, { x: 120, y: 75 }] };
+    const p = buildProposal({ ...raw, rooms: [raw.rooms[0], shortB] }, 2, m, 1, m);
+    expect(p.orphanDoorsNear).toContain("A");
+    const both = buildProposal(raw, 2, m, 1, m);
+    expect(both.orphanDoorsNear.filter((n) => n === "A")).toHaveLength(0);
+  });
+
   it("drops a door placed where the wall has no gap", () => {
     const m = withDoors();
     const wrong: RawDetection = { ...raw, doors: [{ kind: "swing", hinge: { x: 130, y: 24 }, otherJamb: { x: 145, y: 24 }, swingToward: { x: 135, y: 30 } }] };
@@ -307,5 +317,24 @@ describe("closet sliding doors", () => {
     expect(closet.walls![3]).toBe(6); // left edge is a wall again
     expect(p.rooms[0].walls![1]).toBe(6); // and so is the bedroom's matching edge
     expect(p.openings.find((o) => o.label === "Sliding door")).toMatchObject({ shape: "opening", x: 202, rotation: 90 });
+  });
+});
+
+describe("snapping never collapses a room", () => {
+  it("ignores a wall that would pull a shallow closet's front past its back", () => {
+    // A 400×300 plan with one shallow closet (interior y 100–130) whose front at y≈100 has
+    // only a faint track line, and a solid wall right behind its back (y 130–135).
+    const w = 400, h = 300, data = new Uint8Array(w * h);
+    const fill = (x0: number, y0: number, x1: number, y1: number) => {
+      for (let y = y0; y <= y1; y++) for (let x = x0; x <= x1; x++) data[y * w + x] = 1;
+    };
+    fill(100, 130, 300, 135); // back wall
+    fill(94, 94, 99, 135); fill(301, 94, 306, 135); // side walls
+    const rough = [{ x: 102, y: 106 }, { x: 298, y: 106 }, { x: 298, y: 128 }, { x: 102, y: 128 }];
+    const edges = snapRoomEdges(rough, { w, h, data }, defaultOpts({ w, h, data }));
+    expect(edges[0].wall).toBeNull(); // front stays open instead of jumping to the back wall
+    const poly = polygonFromEdges(rough, edges);
+    expect(poly[0].y).toBe(106);
+    expect(poly[2].y).toBe(130);
   });
 });
