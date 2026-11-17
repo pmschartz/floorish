@@ -132,18 +132,35 @@ describe("sectional outlines", () => {
   });
 });
 
-describe("labelPoint", () => {
-  it("puts an L-shaped room's label inside its wider arm, not on the bounding-box center", async () => {
-    const { labelPoint } = await import("../canvas/RoomLayer");
-    const { pointInPolygon } = await import("./geometry");
-    // 120×120 L with the top-right 80×80 cut out: the bbox center (60,60) is outside.
-    const L = [{ x: 0, y: 0 }, { x: 40, y: 0 }, { x: 40, y: 80 }, { x: 120, y: 80 }, { x: 120, y: 120 }, { x: 0, y: 120 }];
-    const p = labelPoint(L);
-    expect(pointInPolygon({ x: 60, y: 60 }, L, 0)).toBe(false);
-    expect(pointInPolygon(p, L, 0)).toBe(true);
+describe("placeLabel", () => {
+  const room = [{ x: 0, y: 0 }, { x: 120, y: 0 }, { x: 120, y: 100 }, { x: 0, y: 100 }];
+  const rect = (x0: number, y0: number, x1: number, y1: number) => [{ x: x0, y: y0 }, { x: x1, y: y0 }, { x: x1, y: y1 }, { x: x0, y: y1 }];
+
+  it("sits in the middle of an empty room", async () => {
+    const { placeLabel } = await import("./labels");
+    expect(placeLabel(room, [], 30, 10)).toEqual({ at: { x: 60, y: 50 }, fits: true });
   });
-  it("uses the center for rectangles", async () => {
-    const { labelPoint } = await import("../canvas/RoomLayer");
-    expect(labelPoint([{ x: 0, y: 0 }, { x: 10, y: 0 }, { x: 10, y: 6 }, { x: 0, y: 6 }])).toEqual({ x: 5, y: 3 });
+
+  it("moves off a bed in the middle of the room", async () => {
+    const { placeLabel } = await import("./labels");
+    const bed = rect(40, 20, 80, 80);
+    const { at, fits } = placeLabel(room, [bed], 30, 10);
+    expect(fits).toBe(true);
+    const clear = at.y + 5 <= 20 || at.y - 5 >= 80 || at.x + 15 <= 40 || at.x - 15 >= 80;
+    expect(clear).toBe(true);
+  });
+
+  it("stays inside an L-shaped room", async () => {
+    const { placeLabel } = await import("./labels");
+    const { pointInPolygon } = await import("./geometry");
+    const L = [{ x: 0, y: 0 }, { x: 40, y: 0 }, { x: 40, y: 80 }, { x: 120, y: 80 }, { x: 120, y: 120 }, { x: 0, y: 120 }];
+    const { at, fits } = placeLabel(L, [], 20, 8);
+    expect(fits).toBe(true);
+    expect(pointInPolygon(at, L, 0)).toBe(true);
+  });
+
+  it("reports when the label is bigger than the room", async () => {
+    const { placeLabel } = await import("./labels");
+    expect(placeLabel(rect(0, 0, 20, 10), [], 40, 12).fits).toBe(false);
   });
 });

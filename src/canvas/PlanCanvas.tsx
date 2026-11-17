@@ -12,6 +12,7 @@ import { canvasApi, DRAG_MIME } from "./canvasApi";
 import { FurnitureShape } from "./FurnitureShape";
 import { CleanRoomLayer, DraftPath, RoomLayer } from "./RoomLayer";
 import { DetectionPreview } from "./DetectionPreview";
+import { RoomLabels } from "./RoomLabels";
 import { useDetect } from "../detect/detectStore";
 
 function useHtmlImage(url: string | undefined) {
@@ -386,6 +387,10 @@ export function PlanCanvas({ issues }: { issues: Issue[] }) {
           />
         </Layer>
         <Layer listening={false}>
+          {ppi && (
+            <RoomLabels rooms={shownRooms} items={plan.items} ppi={ppi} stageScale={s} units={units} clean={clean}
+              selectedRoomId={selectedRoomId} />
+          )}
           {review?.proposal && (
             <DetectionPreview proposal={review.proposal} keepRoom={review.keepRoom} keepDoors={review.keepDoors}
               keepWindows={review.keepWindows} keepOpenings={review.keepOpenings} keepFixtures={review.keepFixtures}

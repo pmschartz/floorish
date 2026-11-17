@@ -1,7 +1,6 @@
-import { Circle, Group, Line, Text } from "react-konva";
+import { Circle, Group, Line } from "react-konva";
 import type { Point, Room } from "../../shared/schemas";
-import { bbox, centroid, distPointSegment, pointInPolygon, polygonArea } from "../model/geometry";
-import { formatArea, formatLength, type UnitSystem } from "../model/units";
+import type { UnitSystem } from "../model/units";
 
 const HUES = [210, 150, 30, 280, 0, 180, 60, 330];
 
@@ -21,10 +20,7 @@ export function RoomLayer({ rooms, ppi, stageScale, units, selectedRoomId, inter
       {rooms.map((room, idx) => {
         const hue = HUES[idx % HUES.length];
         const pts = room.polygon.flatMap((p) => [p.x * ppi, p.y * ppi]);
-        const c = centroid(room.polygon);
-        const b = bbox(room.polygon);
         const selected = room.id === selectedRoomId;
-        const label = `${room.name}\n${formatArea(polygonArea(room.polygon), units)} · ${formatLength(b.width, units)} × ${formatLength(b.height, units)}`;
         return (
           <Group key={room.id}>
             <Line
@@ -40,19 +36,6 @@ export function RoomLayer({ rooms, ppi, stageScale, units, selectedRoomId, inter
                 onSelect(room.id);
               }}
               onTap={() => onSelect(room.id)}
-            />
-            {/* Label in the room's top-left corner so it stays clear of furniture and printed labels. */}
-            <Text
-              text={label}
-              x={(room.polygon.length === 4 ? b.minX : c.x) * ppi + 6 / stageScale}
-              y={(room.polygon.length === 4 ? b.minY : c.y) * ppi + 6 / stageScale}
-              width={Math.max(60, b.width * ppi * stageScale - 12) / stageScale}
-              fontSize={11 / stageScale}
-              lineHeight={1.3}
-              padding={3 / stageScale}
-              fill={`hsl(${hue}, 50%, 25%)`}
-              fontStyle="bold"
-              listening={false}
             />
           </Group>
         );
@@ -100,31 +83,7 @@ export function roomWalls(room: Room, defaultThickness: number): Array<{ pts: nu
   return out;
 }
 
-/**
- * Where to put a room's label: the center for rectangles; for L-shapes and the like,
- * the point inside the room farthest from its walls (the bounding-box center can land
- * outside the room or on a neighbour).
- */
-export function labelPoint(poly: Point[]): Point {
-  const b = bbox(poly);
-  const center = { x: (b.minX + b.maxX) / 2, y: (b.minY + b.maxY) / 2 };
-  if (poly.length <= 4) return center;
-  const clearance = (p: Point) =>
-    Math.min(...poly.map((a, i) => distPointSegment(p, a, poly[(i + 1) % poly.length])));
-  let best = center, bestD = pointInPolygon(center, poly, 0) ? clearance(center) : -1;
-  const steps = 24;
-  for (let i = 1; i < steps; i++) {
-    for (let j = 1; j < steps; j++) {
-      const p = { x: b.minX + (b.width * i) / steps, y: b.minY + (b.height * j) / steps };
-      if (!pointInPolygon(p, poly, 0)) continue;
-      const d = clearance(p);
-      if (d > bestD + 0.5) { best = p; bestD = d; }
-    }
-  }
-  return best;
-}
-
-/** Clean view: tinted rooms, solid walls, centered labels, like a finished floor plan. */
+/** Clean view: tinted rooms and solid walls, like a finished floor plan. Labels float above (RoomLabels). */
 export function CleanRoomLayer({ rooms, ppi, stageScale, units, selectedRoomId, interactive, onSelect, wallThickness }: Props & { wallThickness: number }) {
   return (
     <>
@@ -153,23 +112,6 @@ export function CleanRoomLayer({ rooms, ppi, stageScale, units, selectedRoomId, 
             strokeWidth={w.t * ppi} lineCap="square" listening={false} />
         )),
       )}
-      {rooms.map((room) => {
-        const b = bbox(room.polygon);
-        const at = labelPoint(room.polygon);
-        const cx = at.x * ppi, cy = at.y * ppi;
-        const boxW = Math.max(b.width * ppi, 80 / stageScale);
-        const small = b.width * ppi * stageScale < 70 || b.height * ppi * stageScale < 40;
-        return (
-          <Group key={`label-${room.id}`} listening={false}>
-            <Text text={room.name} x={cx - boxW / 2} y={cy - (small ? 6 : 12) / stageScale} width={boxW} align="center"
-              fontSize={(small ? 10 : 13) / stageScale} fontStyle="bold" fill="#2b2b2b" wrap="none" ellipsis />
-            {!small && (
-              <Text text={`${formatLength(b.width, units)} × ${formatLength(b.height, units)}`} x={cx - boxW / 2}
-                y={cy + 4 / stageScale} width={boxW} align="center" fontSize={11 / stageScale} fill="#55524d" wrap="none" />
-            )}
-          </Group>
-        );
-      })}
     </>
   );
 }
