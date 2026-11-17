@@ -1,6 +1,6 @@
 import { Circle, Group, Line, Text } from "react-konva";
 import type { Point, Room } from "../../shared/schemas";
-import { bbox, centroid, polygonArea } from "../model/geometry";
+import { bbox, centroid, distPointSegment, pointInPolygon, polygonArea } from "../model/geometry";
 import { formatArea, formatLength, type UnitSystem } from "../model/units";
 
 const HUES = [210, 150, 30, 280, 0, 180, 60, 330];
@@ -100,6 +100,30 @@ export function roomWalls(room: Room, defaultThickness: number): Array<{ pts: nu
   return out;
 }
 
+/**
+ * Where to put a room's label: the center for rectangles; for L-shapes and the like,
+ * the point inside the room farthest from its walls (the bounding-box center can land
+ * outside the room or on a neighbour).
+ */
+export function labelPoint(poly: Point[]): Point {
+  const b = bbox(poly);
+  const center = { x: (b.minX + b.maxX) / 2, y: (b.minY + b.maxY) / 2 };
+  if (poly.length <= 4) return center;
+  const clearance = (p: Point) =>
+    Math.min(...poly.map((a, i) => distPointSegment(p, a, poly[(i + 1) % poly.length])));
+  let best = center, bestD = pointInPolygon(center, poly, 0) ? clearance(center) : -1;
+  const steps = 24;
+  for (let i = 1; i < steps; i++) {
+    for (let j = 1; j < steps; j++) {
+      const p = { x: b.minX + (b.width * i) / steps, y: b.minY + (b.height * j) / steps };
+      if (!pointInPolygon(p, poly, 0)) continue;
+      const d = clearance(p);
+      if (d > bestD + 0.5) { best = p; bestD = d; }
+    }
+  }
+  return best;
+}
+
 /** Clean view: tinted rooms, solid walls, centered labels, like a finished floor plan. */
 export function CleanRoomLayer({ rooms, ppi, stageScale, units, selectedRoomId, interactive, onSelect, wallThickness }: Props & { wallThickness: number }) {
   return (
@@ -131,7 +155,8 @@ export function CleanRoomLayer({ rooms, ppi, stageScale, units, selectedRoomId, 
       )}
       {rooms.map((room) => {
         const b = bbox(room.polygon);
-        const cx = ((b.minX + b.maxX) / 2) * ppi, cy = ((b.minY + b.maxY) / 2) * ppi;
+        const at = labelPoint(room.polygon);
+        const cx = at.x * ppi, cy = at.y * ppi;
         const boxW = Math.max(b.width * ppi, 80 / stageScale);
         const small = b.width * ppi * stageScale < 70 || b.height * ppi * stageScale < 40;
         return (

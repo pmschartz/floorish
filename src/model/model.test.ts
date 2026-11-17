@@ -131,3 +131,19 @@ describe("sectional outlines", () => {
     expect(polygonArea(outlineLocal("U", 132, 96))).toBeCloseTo(132 * 96 - (132 - 2 * t) * (96 - t));
   });
 });
+
+describe("labelPoint", () => {
+  it("puts an L-shaped room's label inside its wider arm, not on the bounding-box center", async () => {
+    const { labelPoint } = await import("../canvas/RoomLayer");
+    const { pointInPolygon } = await import("./geometry");
+    // 120×120 L with the top-right 80×80 cut out: the bbox center (60,60) is outside.
+    const L = [{ x: 0, y: 0 }, { x: 40, y: 0 }, { x: 40, y: 80 }, { x: 120, y: 80 }, { x: 120, y: 120 }, { x: 0, y: 120 }];
+    const p = labelPoint(L);
+    expect(pointInPolygon({ x: 60, y: 60 }, L, 0)).toBe(false);
+    expect(pointInPolygon(p, L, 0)).toBe(true);
+  });
+  it("uses the center for rectangles", async () => {
+    const { labelPoint } = await import("../canvas/RoomLayer");
+    expect(labelPoint([{ x: 0, y: 0 }, { x: 10, y: 0 }, { x: 10, y: 6 }, { x: 0, y: 6 }])).toEqual({ x: 5, y: 3 });
+  });
+});
