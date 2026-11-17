@@ -26,7 +26,7 @@ function ItemInspector({ item }: { item: Item }) {
   const { updateItem, removeItem, duplicateItem } = usePlan.getState();
   const set = (patch: Partial<Item>) => updateItem(item.id, patch);
   const rules = clearancesFor(item);
-  const isOpening = item.shape === "door" || item.shape === "window";
+  const isOpening = item.shape === "door" || item.shape === "window" || item.shape === "opening";
 
   return (
     <div className="inspector">
@@ -68,6 +68,9 @@ function ItemInspector({ item }: { item: Item }) {
           />
         </label>
         <button className="icon-btn" title="Rotate 90°" onClick={() => set({ rotation: (item.rotation + 90) % 360 })}>⟳ 90°</button>
+        {item.shape === "door" && (
+          <button className="icon-btn" title="Move the hinge to the other end" onClick={() => set({ flip: !item.flip })}>⇋ Hinge</button>
+        )}
         {!isOpening && (
           <label className="field small">
             <span>Color</span>
@@ -146,7 +149,7 @@ function PlanOverview() {
       <ol className="steps">
         <li className={plan.image ? "done" : ""}>Upload a floor plan (or use the blank grid).</li>
         <li className={ppi ? "done" : ""}>Calibrate: click both ends of a wall you know the length of.</li>
-        <li className={plan.rooms.length ? "done" : ""}>Trace rooms with the Room or Rectangle tool, then name them.</li>
+        <li className={plan.rooms.length ? "done" : ""}>Click Auto-detect to find rooms, doors and windows, or trace rooms yourself with the Room or Rect room tool.</li>
         <li className={plan.items.length ? "done" : ""}>Drag furniture in. Mark what you have, what's planned, and what to buy.</li>
         <li>Select a shape and use “Shop for this”, or select a room and ask what's missing.</li>
       </ol>

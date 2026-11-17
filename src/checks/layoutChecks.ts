@@ -21,7 +21,7 @@ const NESTS: Array<[string, string]> = [
 ];
 const nests = (a: string, b: string) => NESTS.some(([x, y]) => (x === a && y === b) || (x === b && y === a));
 
-const isSolid = (i: Item) => !PASSIVE_CATEGORIES.has(i.category) && i.shape !== "door" && i.shape !== "window";
+const isSolid = (i: Item) => !PASSIVE_CATEGORIES.has(i.category) && i.shape !== "door" && i.shape !== "window" && i.shape !== "opening";
 const name = (i: Item) => i.label || i.category || "Item";
 
 export function roomFor(item: Pick<Item, "x" | "y">, rooms: Room[]): Room | undefined {

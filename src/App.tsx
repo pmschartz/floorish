@@ -12,6 +12,8 @@ import { ChecksPanel } from "./panels/ChecksPanel";
 import { InspectorPanel } from "./panels/InspectorPanel";
 import { LibraryPanel } from "./panels/LibraryPanel";
 import { StylePanel } from "./panels/StylePanel";
+import { DetectPanel } from "./panels/DetectPanel";
+import { useDetect } from "./detect/detectStore";
 import { effectivePpi, flushSave, GRID_PPI, usePlan, type Tool } from "./state/planStore";
 
 function useHashRoute(): string | null {
@@ -121,6 +123,7 @@ function Editor() {
   const selectedRoomId = usePlan((s) => s.selectedRoomId);
   const [tab, setTab] = useState<Tab>("selected");
   const [gridChosen, setGridChosen] = useState(false);
+  const detecting = useDetect((s) => s.status !== "idle");
 
   const issues = useMemo(
     () => runLayoutChecks(plan.items, plan.rooms, (n) => formatLength(n, units)),
@@ -146,6 +149,9 @@ function Editor() {
           {showUpload && <UploadOverlay onGrid={() => setGridChosen(true)} />}
         </main>
         <aside className="panel right">
+          {detecting ? (
+            <div className="tab-body"><DetectPanel /></div>
+          ) : (<>
           <div className="tabs" role="tablist">
             <button role="tab" aria-selected={tab === "selected"} className={tab === "selected" ? "on" : ""} onClick={() => setTab("selected")}>
               {selectedItemId ? "Item" : selectedRoomId ? "Room" : "Plan"}
@@ -160,6 +166,7 @@ function Editor() {
             {tab === "style" && <StylePanel />}
             {tab === "checks" && <ChecksPanel issues={issues} />}
           </div>
+          </>)}
         </aside>
       </div>
     </div>
@@ -180,7 +187,9 @@ function Toolbar() {
   const units = usePlan((s) => s.units);
   const saveStatus = usePlan((s) => s.saveStatus);
   const saveError = usePlan((s) => s.saveError);
-  const { setTool, setUnits, rename } = usePlan.getState();
+  const cleanView = usePlan((s) => s.cleanView);
+  const { setTool, setUnits, rename, setCleanView } = usePlan.getState();
+  const detectStatus = useDetect((s) => s.status);
   const canUndo = useStore(usePlan.temporal, (s) => s.pastStates.length > 0);
   const canRedo = useStore(usePlan.temporal, (s) => s.futureStates.length > 0);
   const fileRef = useRef<HTMLInputElement>(null);
@@ -206,6 +215,24 @@ function Toolbar() {
             {t.label}
           </button>
         ))}
+      </div>
+      <div className="tool-group">
+        <button
+          disabled={!plan.image || detectStatus === "running"}
+          title="Find rooms, doors and windows in the floor plan automatically"
+          onClick={() => void useDetect.getState().start()}
+        >
+          {detectStatus === "running" ? "Detecting…" : "Auto-detect"}
+        </button>
+        <button
+          className={cleanView ? "on" : ""}
+          disabled={!ppi}
+          aria-pressed={cleanView}
+          title="Redraw the plan from its rooms, walls, doors and windows instead of showing the uploaded image"
+          onClick={() => setCleanView(!cleanView)}
+        >
+          Clean view
+        </button>
       </div>
       <div className="tool-group">
         <button disabled={!canUndo} title="Undo (⌘Z)" onClick={() => usePlan.temporal.getState().undo()}>Undo</button>

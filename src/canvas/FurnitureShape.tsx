@@ -14,6 +14,8 @@ interface Props {
   selected: boolean;
   issue: "error" | "warning" | null;
   draggable: boolean;
+  /** Clean view: draw openings as gaps in the wall, like a finished floor plan. */
+  clean?: boolean;
   onSelect: (id: string) => void;
   onChange: (id: string, patch: Partial<Item>) => void;
 }
@@ -23,7 +25,7 @@ function outlinePx(item: Item, ppi: number): number[] {
   return outlineLocal(item.shape, item.width, item.depth).flatMap((p) => [p.x * ppi, p.y * ppi]);
 }
 
-function FurnitureShapeInner({ item, ppi, stageScale, units, selected, issue, draggable, onSelect, onChange }: Props) {
+function FurnitureShapeInner({ item, ppi, stageScale, units, selected, issue, draggable, clean, onSelect, onChange }: Props) {
   const w = item.width * ppi;
   const d = item.depth * ppi;
   const colors = STATUS_COLORS[item.status];
@@ -42,7 +44,7 @@ function FurnitureShapeInner({ item, ppi, stageScale, units, selected, issue, dr
     const node = e.target;
     const sx = node.scaleX(), sy = node.scaleY();
     node.scale({ x: 1, y: 1 });
-    const fixedDepth = item.shape === "door" || item.shape === "window";
+    const fixedDepth = item.shape === "door" || item.shape === "window" || item.shape === "opening";
     onChange(item.id, {
       x: node.x() / ppi,
       y: node.y() / ppi,
@@ -67,24 +69,44 @@ function FurnitureShapeInner({ item, ppi, stageScale, units, selected, issue, dr
     case "U":
       body = <Line points={outlinePx(item, ppi)} closed fill={fill} stroke={stroke} strokeWidth={strokeWidth} dash={dash} />;
       break;
-    case "door":
+    case "door": {
+      // Leaf drawn open at 90°, hinged at the left end (right if flipped), swinging toward the front.
+      const hx = item.flip ? w / 2 : -w / 2;
+      const ink = clean && !selected && !issue ? "#3a3a3a" : stroke;
       body = (
         <>
-          <Rect x={-w / 2} y={-d / 2} width={w} height={d} fill="#fff" stroke={stroke} strokeWidth={strokeWidth} />
-          {/* leaf drawn open at 90°, hinged at the left, swinging toward the front */}
-          <Line points={[-w / 2, d / 2, -w / 2, d / 2 + w]} stroke={stroke} strokeWidth={strokeWidth * 1.4} />
-          <Arc x={-w / 2} y={d / 2} innerRadius={w} outerRadius={w} angle={90} rotation={0}
-            stroke={stroke} strokeWidth={strokeWidth * 0.8} dash={[4 / stageScale, 3 / stageScale]} />
+          <Rect x={-w / 2} y={-d / 2} width={w} height={d} fill="#fff"
+            stroke={clean && !selected && !issue ? undefined : stroke} strokeWidth={strokeWidth} />
+          <Line points={[hx, d / 2, hx, d / 2 + w]} stroke={ink} strokeWidth={strokeWidth * 1.4} />
+          <Arc x={hx} y={d / 2} innerRadius={w} outerRadius={w} angle={90} rotation={item.flip ? 90 : 0}
+            stroke={ink} strokeWidth={strokeWidth * 0.8} dash={clean ? undefined : [4 / stageScale, 3 / stageScale]} />
           <Rect x={-w / 2} y={-d / 2} width={w} height={d + w} fill="transparent" />
         </>
       );
       break;
+    }
     case "window":
-      body = (
+      body = clean ? (
+        <>
+          <Rect x={-w / 2} y={-d / 2} width={w} height={d} fill="#fff" />
+          <Line points={[-w / 2, -d / 2, w / 2, -d / 2]} stroke={selected || issue ? stroke : "#3a3a3a"} strokeWidth={1.2 / stageScale} />
+          <Line points={[-w / 2, d / 2, w / 2, d / 2]} stroke={selected || issue ? stroke : "#3a3a3a"} strokeWidth={1.2 / stageScale} />
+          <Line points={[-w / 2, 0, w / 2, 0]} stroke="#7a8a99" strokeWidth={1 / stageScale} />
+          {selected && <Rect x={-w / 2} y={-d / 2} width={w} height={d} stroke={stroke} strokeWidth={strokeWidth} />}
+        </>
+      ) : (
         <>
           <Rect x={-w / 2} y={-d / 2} width={w} height={d} fill="#e0f2fe" stroke={stroke} strokeWidth={strokeWidth} />
           <Line points={[-w / 2, 0, w / 2, 0]} stroke={stroke} strokeWidth={strokeWidth * 0.7} />
         </>
+      );
+      break;
+    case "opening":
+      body = clean ? (
+        <Rect x={-w / 2} y={-d / 2} width={w} height={d} fill="#fff" stroke={selected || issue ? stroke : undefined} strokeWidth={strokeWidth} />
+      ) : (
+        <Rect x={-w / 2} y={-d / 2} width={w} height={d} fill="rgba(255,255,255,0.6)" stroke={stroke} strokeWidth={strokeWidth}
+          dash={[3 / stageScale, 3 / stageScale]} />
       );
       break;
     default:
@@ -112,11 +134,11 @@ function FurnitureShapeInner({ item, ppi, stageScale, units, selected, issue, dr
       onTransformEnd={handleTransformEnd}
     >
       {body}
-      {item.color && item.shape !== "door" && item.shape !== "window" && (
+      {item.color && item.shape !== "door" && item.shape !== "window" && item.shape !== "opening" && (
         <Rect x={w / 2 - 9 / stageScale} y={-d / 2 + 3 / stageScale} width={6 / stageScale} height={6 / stageScale}
           fill={item.color} stroke="#0003" strokeWidth={0.5 / stageScale} listening={false} />
       )}
-      {showLabel && item.shape !== "door" && item.shape !== "window" && (
+      {showLabel && item.shape !== "door" && item.shape !== "window" && item.shape !== "opening" && (
         <Text
           text={`${name}\n${formatDims(item.width, item.depth, units)}`}
           x={-w / 2}

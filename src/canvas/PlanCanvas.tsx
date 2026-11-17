@@ -10,7 +10,9 @@ import { effectivePpi, usePlan } from "../state/planStore";
 import { CalibrateDialog } from "./CalibrateTool";
 import { canvasApi, DRAG_MIME } from "./canvasApi";
 import { FurnitureShape } from "./FurnitureShape";
-import { DraftPath, RoomLayer } from "./RoomLayer";
+import { CleanRoomLayer, DraftPath, RoomLayer } from "./RoomLayer";
+import { DetectionPreview } from "./DetectionPreview";
+import { useDetect } from "../detect/detectStore";
 
 function useHtmlImage(url: string | undefined) {
   const [img, setImg] = useState<HTMLImageElement | null>(null);
@@ -39,6 +41,12 @@ export function PlanCanvas({ issues }: { issues: Issue[] }) {
 
   const ppi = effectivePpi(plan);
   const img = useHtmlImage(plan.image?.url);
+  const clean = usePlan((st) => st.cleanView) && !!ppi;
+  const review = useDetect((st) => (st.status === "review" ? st : null));
+  // While reviewing a detection that will replace your rooms, show only the new ones.
+  const hideReplaced = !!review?.replace;
+  const shownRooms = hideReplaced ? [] : plan.rooms;
+  const isOpening = (shape: string) => shape === "door" || shape === "window" || shape === "opening";
 
   const wrapRef = useRef<HTMLDivElement>(null);
   const stageRef = useRef<Konva.Stage>(null);
@@ -314,7 +322,9 @@ export function PlanCanvas({ issues }: { issues: Issue[] }) {
         onMouseLeave={() => setHover(null)}
       >
         <Layer listening={false}>
-          {img ? (
+          {clean ? (
+            <Rect width={content.w} height={content.h} fill="#fff" />
+          ) : img ? (
             <KImage image={img} width={content.w} height={content.h} />
           ) : (
             <GridBackground w={content.w} h={content.h} ppi={ppi ?? 2} scale={s} />
@@ -322,9 +332,13 @@ export function PlanCanvas({ issues }: { issues: Issue[] }) {
         </Layer>
         <Layer>
           <Rect name="bg" x={-1e5} y={-1e5} width={2e5} height={2e5} fill="transparent" />
-          {ppi && (
-            <RoomLayer rooms={plan.rooms} ppi={ppi} stageScale={s} units={units} selectedRoomId={selectedRoomId}
+          {ppi && !clean && (
+            <RoomLayer rooms={shownRooms} ppi={ppi} stageScale={s} units={units} selectedRoomId={selectedRoomId}
               interactive={tool === "select"} onSelect={(id) => select({ room: id })} />
+          )}
+          {ppi && clean && (
+            <CleanRoomLayer rooms={shownRooms} ppi={ppi} stageScale={s} units={units} selectedRoomId={selectedRoomId}
+              interactive={tool === "select"} onSelect={(id) => select({ room: id })} wallThickness={plan.wallThickness} />
           )}
         </Layer>
         <Layer>
@@ -342,7 +356,7 @@ export function PlanCanvas({ issues }: { issues: Issue[] }) {
             </Group>
           )}
           {ppi &&
-            items.map((it) => (
+            items.filter((it) => !(hideReplaced && isOpening(it.shape))).map((it) => (
               <FurnitureShape
                 key={it.id}
                 item={it}
@@ -352,6 +366,7 @@ export function PlanCanvas({ issues }: { issues: Issue[] }) {
                 selected={it.id === selectedItemId}
                 issue={issueByItem.get(it.id) ?? null}
                 draggable={tool === "select" && !spaceDown}
+                clean={clean}
                 onSelect={(id) => tool === "select" && select({ item: id })}
                 onChange={updateItem}
               />
@@ -371,6 +386,10 @@ export function PlanCanvas({ issues }: { issues: Issue[] }) {
           />
         </Layer>
         <Layer listening={false}>
+          {review?.proposal && (
+            <DetectionPreview proposal={review.proposal} keepRoom={review.keepRoom} keepDoors={review.keepDoors}
+              keepWindows={review.keepWindows} keepOpenings={review.keepOpenings} ppi={review.proposal.ppi} stageScale={s} />
+          )}
           {(tool === "room" || tool === "calibrate") && draft.length > 0 && (
             <DraftPath points={draft} hover={calib ? null : hover} stageScale={s} color={draftColor} />
           )}

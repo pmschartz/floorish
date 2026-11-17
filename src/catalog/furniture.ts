@@ -114,4 +114,4 @@ export const STATUS_COLORS: Record<Item["status"], { fill: string; stroke: strin
   "to-buy": { fill: "rgba(245,158,11,0.35)", stroke: "#d97706" },
 };
 
-export const PASSIVE_CATEGORIES = new Set(["rug", "door", "window"]);
+export const PASSIVE_CATEGORIES = new Set(["rug", "door", "window", "opening"]);

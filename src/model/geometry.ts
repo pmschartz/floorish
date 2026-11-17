@@ -145,13 +145,20 @@ export function clearanceZone(item: Pick<Item, "x" | "y" | "rotation" | "width" 
   return local.map((p) => toWorld(item, p));
 }
 
-/** Door swing: quarter circle hinged at the door's left end, opening toward its front. */
-export function doorSwing(item: Pick<Item, "x" | "y" | "rotation" | "width" | "depth">, segments = 8): Point[] {
-  const hinge = { x: -item.width / 2, y: item.depth / 2 };
+/**
+ * Door swing: quarter circle hinged at the door's left end (right end if flipped),
+ * opening toward its front.
+ */
+export function doorSwing(
+  item: Pick<Item, "x" | "y" | "rotation" | "width" | "depth"> & { flip?: boolean },
+  segments = 8,
+): Point[] {
+  const dir = item.flip ? -1 : 1;
+  const hinge = { x: -dir * item.width / 2, y: item.depth / 2 };
   const pts: Point[] = [hinge];
   for (let i = 0; i <= segments; i++) {
     const a = (i / segments) * (Math.PI / 2);
-    pts.push({ x: hinge.x + item.width * Math.cos(a), y: hinge.y + item.width * Math.sin(a) });
+    pts.push({ x: hinge.x + dir * item.width * Math.cos(a), y: hinge.y + item.width * Math.sin(a) });
   }
   return pts.map((p) => toWorld(item, p));
 }

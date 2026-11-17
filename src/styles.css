@@ -192,3 +192,17 @@ kbd { font-family: ui-monospace, monospace; font-size: 11px; border: 1px solid v
 .modal { background: #fff; border-radius: 12px; padding: 20px; width: min(380px, 92%); display: grid; gap: 10px; box-shadow: 0 10px 40px #0003; }
 .modal p { margin: 0; }
 .modal-actions { display: flex; justify-content: end; gap: 8px; }
+
+/* ---- Auto-detect ---- */
+.spinner-line { display: flex; align-items: center; gap: 8px; margin: 0; }
+.spinner { width: 14px; height: 14px; border: 2px solid var(--accent-soft); border-top-color: var(--accent); border-radius: 50%; animation: spin 0.8s linear infinite; }
+@keyframes spin { to { transform: rotate(360deg); } }
+.detect-review p { margin: 0; }
+.detect-rooms { list-style: none; margin: 0; padding: 0; display: grid; gap: 6px; }
+.detect-rooms li { display: grid; grid-template-columns: auto 1fr auto; gap: 4px 6px; align-items: center; padding: 6px; border: 1px solid var(--border); border-radius: 8px; }
+.detect-rooms li.off { opacity: 0.5; }
+.detect-rooms li .muted { grid-column: 2 / 4; }
+.detect-rooms .room-name { padding: 3px 6px; }
+.detect-rooms select { padding: 3px 4px; font-size: 12px; }
+.checks-list { display: grid; gap: 6px; font-size: 13px; }
+.checks-list label { display: flex; gap: 6px; align-items: start; }

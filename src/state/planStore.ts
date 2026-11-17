@@ -18,6 +18,7 @@ interface PlanState {
   selectedRoomId: string | null;
   tool: Tool;
   units: UnitSystem;
+  cleanView: boolean;
   saveStatus: SaveStatus;
   saveError: string | null;
 
@@ -26,6 +27,7 @@ interface PlanState {
   closePlan: () => void;
   setTool: (tool: Tool) => void;
   setUnits: (u: UnitSystem) => void;
+  setCleanView: (on: boolean) => void;
   select: (sel: { item?: string | null; room?: string | null }) => void;
 
   rename: (name: string) => void;
@@ -40,15 +42,34 @@ interface PlanState {
   addRoom: (polygon: Point[]) => Room;
   updateRoom: (id: string, patch: Partial<Room>) => void;
   removeRoom: (id: string) => void;
+
+  /** Add (or swap in) rooms, doors and windows found by auto-detect, as one undoable step. */
+  applyDetection: (d: {
+    ppi: number;
+    wallThickness: number;
+    rooms: Omit<Room, "id">[];
+    openings: Omit<Item, "id">[];
+    replace: boolean;
+  }) => void;
 }
 
-const loadUnits = (): UnitSystem => {
+const OPENING_SHAPES = new Set<Item["shape"]>(["door", "window", "opening"]);
+
+const pref = (key: string) => {
   try {
-    return localStorage.getItem("units") === "metric" ? "metric" : "imperial";
+    return localStorage.getItem(key);
   } catch {
-    return "imperial";
+    return null;
   }
 };
+const savePref = (key: string, value: string) => {
+  try {
+    localStorage.setItem(key, value);
+  } catch {
+    /* per-viewer convenience only */
+  }
+};
+const loadUnits = (): UnitSystem => (pref("units") === "metric" ? "metric" : "imperial");
 
 export const usePlan = create<PlanState>()(
   temporal(
@@ -63,6 +84,7 @@ export const usePlan = create<PlanState>()(
         selectedRoomId: null,
         tool: "select",
         units: loadUnits(),
+        cleanView: pref("cleanView") === "1",
         saveStatus: "idle",
         saveError: null,
 
@@ -81,12 +103,12 @@ export const usePlan = create<PlanState>()(
         },
         setTool: (tool) => set({ tool }),
         setUnits: (units) => {
-          try {
-            localStorage.setItem("units", units);
-          } catch {
-            /* per-viewer convenience only */
-          }
+          savePref("units", units);
           set({ units });
+        },
+        setCleanView: (cleanView) => {
+          savePref("cleanView", cleanView ? "1" : "0");
+          set({ cleanView });
         },
         select: ({ item, room }) =>
           set({
@@ -126,6 +148,7 @@ export const usePlan = create<PlanState>()(
             depth: entry.depth,
             height: entry.height,
             rotation: 0,
+            flip: false,
             color: "",
             status: "existing",
             notes: "",
@@ -162,6 +185,20 @@ export const usePlan = create<PlanState>()(
         removeRoom: (id) => {
           edit((p) => ({ ...p, rooms: p.rooms.filter((r) => r.id !== id) }));
           if (get().selectedRoomId === id) set({ selectedRoomId: null });
+        },
+
+        applyDetection: ({ ppi, wallThickness, rooms, openings, replace }) => {
+          edit((p) => ({
+            ...p,
+            pxPerInch: p.pxPerInch ?? ppi,
+            wallThickness,
+            rooms: [...(replace ? [] : p.rooms), ...rooms.map((r) => ({ ...r, id: nanoid(8) }))],
+            items: [
+              ...(replace ? p.items.filter((i) => !OPENING_SHAPES.has(i.shape)) : p.items),
+              ...openings.map((i) => ({ ...i, id: nanoid(8) })),
+            ],
+          }));
+          set({ selectedItemId: null, selectedRoomId: null });
         },
       };
     },

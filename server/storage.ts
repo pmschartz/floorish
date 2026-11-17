@@ -58,6 +58,7 @@ export async function createPlan(name: string): Promise<Plan> {
     updatedAt: now,
     image: null,
     pxPerInch: null,
+    wallThickness: 5,
     rooms: [],
     items: [],
     style: emptyStyle(),

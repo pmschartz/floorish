@@ -61,6 +61,94 @@ export function RoomLayer({ rooms, ppi, stageScale, units, selectedRoomId, inter
   );
 }
 
+const TYPE_FILL: Record<Room["type"], string> = {
+  bedroom: "#f4dcc9",
+  bath: "#d6e8ee",
+  kitchen: "#efe8dc",
+  living: "#f3eee7",
+  dining: "#f3eee7",
+  office: "#e6ecdc",
+  closet: "#ebe7e1",
+  laundry: "#d9e9e6",
+  hall: "#f3eee7",
+  entry: "#f3eee7",
+  garage: "#ebe7e0",
+  other: "#f0ece6",
+};
+
+/** Wall strokes for a room in inches: each edge pushed outward by half its wall's thickness. */
+export function roomWalls(room: Room, defaultThickness: number): Array<{ pts: number[]; t: number }> {
+  const poly = room.polygon;
+  let area = 0;
+  for (let i = 0; i < poly.length; i++) {
+    const p = poly[i], q = poly[(i + 1) % poly.length];
+    area += p.x * q.y - q.x * p.y;
+  }
+  const cw = area >= 0 ? 1 : -1;
+  const out: Array<{ pts: number[]; t: number }> = [];
+  poly.forEach((p, i) => {
+    const t = room.walls ? room.walls[i] : defaultThickness;
+    if (t == null || t <= 0) return; // open to the next space
+    const q = poly[(i + 1) % poly.length];
+    const len = Math.hypot(q.x - p.x, q.y - p.y);
+    if (len < 0.01) return;
+    // Inward normal of a clockwise (on screen) polygon is (−dy, dx); walls sit on the other side.
+    const nx = (-cw * -(q.y - p.y)) / len, ny = (-cw * (q.x - p.x)) / len;
+    const ox = nx * t / 2, oy = ny * t / 2;
+    out.push({ pts: [p.x + ox, p.y + oy, q.x + ox, q.y + oy], t });
+  });
+  return out;
+}
+
+/** Clean view: tinted rooms, solid walls, centered labels, like a finished floor plan. */
+export function CleanRoomLayer({ rooms, ppi, stageScale, units, selectedRoomId, interactive, onSelect, wallThickness }: Props & { wallThickness: number }) {
+  return (
+    <>
+      {rooms.map((room) => {
+        const selected = room.id === selectedRoomId;
+        return (
+          <Line
+            key={`fill-${room.id}`}
+            points={room.polygon.flatMap((p) => [p.x * ppi, p.y * ppi])}
+            closed
+            fill={TYPE_FILL[room.type] ?? TYPE_FILL.other}
+            stroke={selected ? "#2f6f5e" : undefined}
+            strokeWidth={2.5 / stageScale}
+            listening={interactive}
+            onClick={(e) => {
+              if (e.evt.button !== 0) return;
+              onSelect(room.id);
+            }}
+            onTap={() => onSelect(room.id)}
+          />
+        );
+      })}
+      {rooms.flatMap((room) =>
+        roomWalls(room, wallThickness).map((w, i) => (
+          <Line key={`wall-${room.id}-${i}`} points={w.pts.map((v) => v * ppi)} stroke="#2b2b2b"
+            strokeWidth={w.t * ppi} lineCap="square" listening={false} />
+        )),
+      )}
+      {rooms.map((room) => {
+        const b = bbox(room.polygon);
+        const cx = ((b.minX + b.maxX) / 2) * ppi, cy = ((b.minY + b.maxY) / 2) * ppi;
+        const boxW = Math.max(b.width * ppi, 80 / stageScale);
+        const small = b.width * ppi * stageScale < 70 || b.height * ppi * stageScale < 40;
+        return (
+          <Group key={`label-${room.id}`} listening={false}>
+            <Text text={room.name} x={cx - boxW / 2} y={cy - (small ? 6 : 12) / stageScale} width={boxW} align="center"
+              fontSize={(small ? 10 : 13) / stageScale} fontStyle="bold" fill="#2b2b2b" wrap="none" ellipsis />
+            {!small && (
+              <Text text={`${formatLength(b.width, units)} × ${formatLength(b.height, units)}`} x={cx - boxW / 2}
+                y={cy + 4 / stageScale} width={boxW} align="center" fontSize={11 / stageScale} fill="#55524d" wrap="none" />
+            )}
+          </Group>
+        );
+      })}
+    </>
+  );
+}
+
 /** In-progress room or calibration line, drawn in image pixels. */
 export function DraftPath({ points, hover, closed, stageScale, color }: {
   points: Point[];

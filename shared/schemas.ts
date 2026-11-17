@@ -6,12 +6,20 @@ import { z } from "zod";
 export const PointSchema = z.object({ x: z.number(), y: z.number() });
 export type Point = z.infer<typeof PointSchema>;
 
-export const ROOM_TYPES = ["bedroom", "living", "dining", "office", "kitchen", "bath", "hall", "other"] as const;
+export const ROOM_TYPES = [
+  "bedroom", "living", "dining", "kitchen", "bath", "office", "closet", "laundry", "hall", "entry", "garage", "other",
+] as const;
 export const RoomSchema = z.object({
   id: z.string(),
   name: z.string(),
   type: z.enum(ROOM_TYPES),
+  /** Interior outline (inside faces of the walls), inches. */
   polygon: z.array(PointSchema),
+  /**
+   * Per edge (polygon[i] → polygon[i+1]): wall thickness in inches, or null where the
+   * room is open to the next space. Missing for rooms traced by hand.
+   */
+  walls: z.array(z.number().nullable()).optional(),
 });
 export type Room = z.infer<typeof RoomSchema>;
 export type RoomType = (typeof ROOM_TYPES)[number];
@@ -57,13 +65,14 @@ export const ItemSchema = z.object({
   catalogKey: z.string(), // "custom" for user-drawn shapes
   label: z.string(),
   category: z.string(),
-  shape: z.enum(["rect", "circle", "L", "U", "door", "window"]),
+  shape: z.enum(["rect", "circle", "L", "U", "door", "window", "opening"]),
   x: z.number(), // center, inches
   y: z.number(),
   width: z.number(),
   depth: z.number(),
   height: z.number().nullable(),
   rotation: z.number(), // degrees, clockwise
+  flip: z.boolean().default(false), // doors: hinge on the right end instead of the left
   color: z.string(),
   status: z.enum(ITEM_STATUSES),
   notes: z.string(),
@@ -101,6 +110,7 @@ export const PlanSchema = z.object({
     .object({ url: z.string(), widthPx: z.number(), heightPx: z.number() })
     .nullable(),
   pxPerInch: z.number().nullable(),
+  wallThickness: z.number().default(5), // inches; used for walls drawn in clean view
   rooms: z.array(RoomSchema),
   items: z.array(ItemSchema),
   style: StyleProfileSchema,
@@ -171,3 +181,39 @@ export type SuggestRoomResponse = z.infer<typeof SuggestRoomResponseSchema>;
 export function emptyStyle(): StyleProfile {
   return { styles: [], palette: [], avoid: "", budgetNote: "" };
 }
+
+// ---- Floor plan auto-detection (coordinates are pixels of the image sent to Claude) ----
+
+const Px = z.object({ x: z.number(), y: z.number() });
+
+export const RawDetectionSchema = z.object({
+  rooms: z.array(
+    z.object({
+      name: z.string(),
+      type: z.enum(ROOM_TYPES),
+      polygon: z.array(Px),
+      labeledWidthIn: z.number().nullable(),
+      labeledDepthIn: z.number().nullable(),
+    }),
+  ),
+  doors: z.array(
+    z.object({
+      kind: z.enum(["swing", "double", "sliding", "pocket", "bifold", "opening", "garage"]),
+      hinge: Px,
+      otherJamb: Px,
+      swingToward: Px.nullable(),
+    }),
+  ),
+  windows: z.array(z.object({ start: Px, end: Px })),
+  dimensionLines: z.array(z.object({ start: Px, end: Px, text: z.string(), inches: z.number() })),
+  notes: z.string(),
+});
+export type RawDetection = z.infer<typeof RawDetectionSchema>;
+
+export const DetectRequestSchema = z.object({
+  image: z.string().min(100), // base64, no data: prefix
+  mediaType: z.enum(["image/png", "image/jpeg", "image/webp"]),
+  width: z.number().int().positive(),
+  height: z.number().int().positive(),
+});
+export type DetectRequest = z.infer<typeof DetectRequestSchema>;

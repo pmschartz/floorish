@@ -13,6 +13,7 @@ function item(p: Partial<Item> & Pick<Item, "category" | "x" | "y" | "width" | "
     shape: "rect",
     height: null,
     rotation: 0,
+    flip: false,
     color: "",
     status: "existing",
     notes: "",

@@ -1,8 +1,9 @@
 import express, { type NextFunction, type Request, type Response } from "express";
 import multer from "multer";
 import { ZodError } from "zod";
-import { PlanSchema, ShopRequestSchema, SuggestRoomRequestSchema } from "../shared/schemas";
+import { DetectRequestSchema, PlanSchema, ShopRequestSchema, SuggestRoomRequestSchema } from "../shared/schemas";
 import { AiError, toAiError } from "./claude/client";
+import { detectFloorPlan } from "./claude/detectPlan";
 import { shopForItem } from "./claude/shop";
 import { suggestForRoom } from "./claude/suggestRoom";
 import * as store from "./storage";
@@ -11,6 +12,7 @@ const PORT = Number(process.env.API_PORT ?? 5174);
 const app = express();
 const upload = multer({ storage: multer.memoryStorage(), limits: { fileSize: 25 * 1024 * 1024 } });
 
+app.use("/api/detect", express.json({ limit: "30mb" })); // base64 floor plan image
 app.use(express.json({ limit: "5mb" }));
 app.use("/images", express.static(store.IMAGES_DIR, { maxAge: "1d", immutable: true }));
 
@@ -62,6 +64,15 @@ app.post("/api/suggest-room", route(async (req, res) => {
   const body = SuggestRoomRequestSchema.parse(req.body);
   try {
     res.json(await suggestForRoom(body));
+  } catch (e) {
+    throw toAiError(e);
+  }
+}));
+
+app.post("/api/detect", route(async (req, res) => {
+  const body = DetectRequestSchema.parse(req.body);
+  try {
+    res.json(await detectFloorPlan(body));
   } catch (e) {
     throw toAiError(e);
   }

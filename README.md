@@ -5,6 +5,8 @@ Upload a floor plan, lay out the furniture you have at real scale, and find furn
 - **Floor plans**: PNG, JPG, WebP, SVG, or PDF (page 1). Or start on a blank grid.
 - **Scale**: Calibrate (C) by clicking both ends of a wall you know the length of.
 - **Rooms**: trace them corner by corner (R) or with two clicks for rectangles (B), then name them.
+- **Auto-detect**: Claude reads the plan (room names and types, doors with their hinge and swing, windows, printed dimensions); the app then snaps everything to the walls it finds in the image and measures wall thickness. You review and untick anything wrong before it is added. Scale comes from your calibration, printed dimensions, or (as an estimate) door widths.
+- **Clean view**: redraws the plan from its rooms, walls, doors and windows instead of the uploaded image, and exports that way too.
 - **Furniture**: drag standard pieces from the library (beds, sofas, desks, bookcases, rugs, doors…) or draw custom rectangles, circles, and L-shapes and say what they are.
 - **Layout checks**: overlaps, items through walls, walkway clearances (bed sides, drawers, chair pull-back), and door swings.
 - **Shop for this**: Claude searches the web for real products that fit the shape, your style, and your palette, and labels each one Fits / Tight / Too big.

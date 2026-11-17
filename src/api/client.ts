@@ -1,6 +1,8 @@
 import type {
+  DetectRequest,
   Plan,
   PlanSummary,
+  RawDetection,
   ShopRequest,
   ShopResults,
   SuggestRoomRequest,
@@ -42,4 +44,5 @@ export const api = {
   },
   shop: (body: ShopRequest, signal?: AbortSignal) => req<ShopResults>("POST", "/api/shop", body, signal),
   suggestRoom: (body: SuggestRoomRequest) => req<SuggestRoomResponse>("POST", "/api/suggest-room", body),
+  detect: (body: DetectRequest, signal?: AbortSignal) => req<RawDetection>("POST", "/api/detect", body, signal),
 };
