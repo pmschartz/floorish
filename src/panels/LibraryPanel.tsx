@@ -1,5 +1,5 @@
 import { useMemo, useState } from "react";
-import { CATALOG, CUSTOM_SHAPES, type CatalogEntry } from "../catalog/furniture";
+import { ALL_ENTRIES, type CatalogEntry } from "../catalog/furniture";
 import { canvasApi, DRAG_MIME } from "../canvas/canvasApi";
 import { formatDims } from "../model/units";
 import { effectivePpi, usePlan } from "../state/planStore";
@@ -11,6 +11,7 @@ function ShapeIcon({ shape }: { shape: CatalogEntry["shape"] }) {
       {shape === "circle" ? <circle cx="9" cy="9" r="6.5" {...common} />
         : shape === "L" ? <path d="M2.5 2.5h13v5h-8v8h-5z" {...common} />
         : shape === "U" ? <path d="M2.5 2.5h13v13h-4v-9h-5v9h-4z" {...common} />
+        : shape === "fixture" ? <><rect x="2.5" y="2.5" width="13" height="13" rx="1" {...common} /><circle cx="9" cy="10" r="3.5" {...common} /></>
         : shape === "door" ? <><path d="M3 15V3" {...common} /><path d="M3 3a12 12 0 0 1 12 12" {...common} strokeDasharray="2 2" /></>
         : shape === "window" ? <><rect x="2" y="7" width="14" height="4" {...common} /><path d="M2 9h14" {...common} /></>
         : <rect x="2.5" y="4.5" width="13" height="9" rx="1" {...common} />}
@@ -28,7 +29,7 @@ export function LibraryPanel() {
     const needle = q.trim().toLowerCase();
     const match = (c: CatalogEntry) => !needle || c.label.toLowerCase().includes(needle) || c.category.includes(needle);
     const out = new Map<string, CatalogEntry[]>();
-    for (const c of [...CUSTOM_SHAPES, ...CATALOG].filter(match)) {
+    for (const c of ALL_ENTRIES.filter(match)) {
       out.set(c.group, [...(out.get(c.group) ?? []), c]);
     }
     return [...out.entries()];

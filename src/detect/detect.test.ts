@@ -56,7 +56,7 @@ describe("snapping to walls", () => {
 
   it("finds a doorway's exact gap and centers it on the wall", () => {
     const s = snapOpening({ x: 202, y: 83 }, { x: 204, y: 107 }, m, o);
-    expect(s).toEqual({ axis: "v", perp: 203, start: 80, end: 111, thickness: 6 });
+    expect(s).toEqual({ axis: "v", perp: 203, start: 80, end: 111, thickness: 6, gapFound: true });
   });
 
   it("finds a window drawn as thin lines in the wall", () => {
@@ -96,7 +96,7 @@ describe("buildProposal", () => {
     ],
     doors: [{ kind: "swing", hinge: { x: 101, y: 40 }, otherJamb: { x: 101, y: 55 }, swingToward: { x: 108, y: 45 } }],
     windows: [{ start: { x: 49, y: 23 }, end: { x: 71, y: 23 } }],
-    dimensionLines: [],
+    dimensionLines: [], fixtures: [],
     notes: "",
   };
 
@@ -136,7 +136,7 @@ describe("walls that are mostly doorway", () => {
       rooms: [{ name: "Hall", type: "hall", polygon: [{ x: 104, y: 39 }, { x: 175, y: 39 }, { x: 175, y: 56 }, { x: 104, y: 56 }], labeledWidthIn: null, labeledDepthIn: null }],
       doors: [{ kind: "swing", hinge: { x: 101, y: 40 }, otherJamb: { x: 101, y: 55 }, swingToward: { x: 108, y: 45 } }],
       windows: [],
-      dimensionLines: [],
+      dimensionLines: [], fixtures: [],
       notes: "",
     };
     const p = buildProposal(raw, 2, plan(), 2);
@@ -158,7 +158,7 @@ describe("garage-style walls", () => {
     const raw: RawDetection = {
       rooms: [{ name: "Garage", type: "garage", polygon: [{ x: 22, y: 22 }, { x: 178, y: 22 }, { x: 178, y: 148 }, { x: 22, y: 148 }], labeledWidthIn: null, labeledDepthIn: null }],
       doors: [{ kind: "garage", hinge: { x: 22, y: 153 }, otherJamb: { x: 178, y: 153 }, swingToward: null }],
-      windows: [], dimensionLines: [], notes: "",
+      windows: [], dimensionLines: [], fixtures: [], notes: "",
     };
     const p = buildProposal(raw, 1, { w, h, data }, 1);
     expect(p.rooms[0].walls).toEqual([6, 6, 6, 6]);
@@ -178,5 +178,134 @@ describe("carryOverNames", () => {
     const { rooms, detectedName } = carryOverNames(detected, existing);
     expect(rooms.map((r) => [r.name, r.type])).toEqual([["Paige's Office", "office"], ["Foyer", "entry"]]);
     expect(detectedName).toEqual(["Bedroom", null]);
+  });
+});
+
+describe("reading doors from their arcs", () => {
+  /** plan() plus two drawn doors: one in the shared-wall doorway, one in a new gap in A's bottom wall. */
+  function withDoors(): Mask {
+    const m = plan();
+    const set = (x: number, y: number) => {
+      const xi = Math.round(x), yi = Math.round(y);
+      if (xi >= 0 && yi >= 0 && xi < m.w && yi < m.h) m.data[yi * m.w + xi] = 1;
+    };
+    const door = (hx: number, hy: number, r: number, leafDx: number, leafDy: number, arcFrom: number, arcTo: number) => {
+      for (let i = 0; i <= r; i++) set(hx + leafDx * i, hy + leafDy * i);
+      for (let a = arcFrom; a <= arcTo; a += 0.5) set(hx + r * Math.cos((a * Math.PI) / 180), hy + r * Math.sin((a * Math.PI) / 180));
+    };
+    // Shared wall doorway y 80–110: hinged at the bottom, swinging right into room B.
+    door(206, 111, 31, 1, 0, -90, 0);
+    // New doorway in A's bottom wall (rows 150–155) at x 80–110, hinged left, swinging down.
+    for (let y = 150; y <= 155; y++) for (let x = 80; x <= 110; x++) m.data[y * m.w + x] = 0;
+    door(80, 156, 31, 0, 1, 0, 90);
+    return m;
+  }
+
+  const raw: RawDetection = {
+    rooms: [
+      { name: "A", type: "bedroom", polygon: [{ x: 27, y: 28 }, { x: 99, y: 27 }, { x: 99, y: 74 }, { x: 26, y: 74 }], labeledWidthIn: null, labeledDepthIn: null },
+      { name: "B", type: "office", polygon: [{ x: 104, y: 26 }, { x: 174, y: 26 }, { x: 175, y: 74 }, { x: 104, y: 75 }], labeledWidthIn: null, labeledDepthIn: null },
+    ],
+    // Claude got this one backwards: hinge at the top, swinging left.
+    doors: [{ kind: "swing", hinge: { x: 101, y: 40 }, otherJamb: { x: 101, y: 55 }, swingToward: { x: 95, y: 45 } }],
+    windows: [],
+    dimensionLines: [], fixtures: [],
+    notes: "",
+  };
+
+  it("corrects a backwards door and finds the one Claude missed", () => {
+    const m = withDoors();
+    const p = buildProposal(raw, 2, m, 1, m);
+    const doors = p.openings.filter((o) => o.shape === "door");
+    expect(p.correctedDoors).toBe(1);
+    expect(p.addedDoors).toBe(1);
+    expect(doors).toHaveLength(2);
+    // Shared wall: hinge at the bottom, swinging right → front faces +x with the hinge on the unflipped end.
+    expect(doors[0]).toMatchObject({ x: 203, y: 95.5, rotation: 270, flip: false });
+    // Bottom wall: hinge on the left, swinging down.
+    expect(doors[1]).toMatchObject({ x: 95.5, y: 153, width: 31, rotation: 0, flip: false });
+  });
+
+  it("moves a door reported a little off its wall onto the real doorway", () => {
+    const m = withDoors();
+    // Reported 16px left of the shared wall, inside room A (sent-image coords are half-size).
+    const off: RawDetection = { ...raw, doors: [{ kind: "swing", hinge: { x: 92, y: 55 }, otherJamb: { x: 92, y: 40 }, swingToward: null }] };
+    const p = buildProposal(off, 2, m, 1, m);
+    const doors = p.openings.filter((o) => o.shape === "door");
+    expect(doors[0]).toMatchObject({ x: 203, y: 95.5, rotation: 270, flip: false });
+    expect(p.addedDoors).toBe(1); // only the bottom-wall door is new; the moved one isn't double-counted
+  });
+
+  it("drops a door placed where the wall has no gap", () => {
+    const m = withDoors();
+    const wrong: RawDetection = { ...raw, doors: [{ kind: "swing", hinge: { x: 130, y: 24 }, otherJamb: { x: 145, y: 24 }, swingToward: { x: 135, y: 30 } }] };
+    const p = buildProposal(wrong, 2, m, 1, m);
+    // The misplaced one is gone; the wall scan still finds both real doors.
+    expect(p.openings.filter((o) => o.shape === "door")).toHaveLength(2);
+  });
+});
+
+describe("fixtures", () => {
+  const room: RawDetection["rooms"][number] = {
+    name: "A", type: "kitchen", polygon: [{ x: 27, y: 28 }, { x: 99, y: 27 }, { x: 99, y: 74 }, { x: 26, y: 74 }], labeledWidthIn: null, labeledDepthIn: null,
+  };
+  const raw = (fixtures: RawDetection["fixtures"]): RawDetection => ({ rooms: [room], doors: [], windows: [], fixtures, dimensionLines: [], notes: "" });
+
+  it("pushes a counter flush against its wall and faces it into the room", () => {
+    // Claude's box sits 4px (sent-image 2px) off the top wall's inside face at y=50.
+    const p = buildProposal(raw([{ kind: "counter", against: "top", box: { x0: 30, y0: 27, x1: 60, y1: 39 } }]), 2, plan(), 1);
+    expect(p.fixtures[0]).toMatchObject({ shape: "fixture", category: "counter", label: "Counter", x: 90, y: 62, width: 60, depth: 24, rotation: 0 });
+  });
+
+  it("turns fixtures on side walls so their width runs along the wall", () => {
+    const p = buildProposal(raw([{ kind: "toilet", against: "left", box: { x0: 27, y0: 40, x1: 37, y1: 70 } }]), 2, plan(), 1);
+    expect(p.fixtures[0]).toMatchObject({ category: "toilet", x: 60, y: 110, width: 60, depth: 20, rotation: 270 });
+  });
+
+  it("leaves islands where they are", () => {
+    const p = buildProposal(raw([{ kind: "island", against: "none", box: { x0: 50, y0: 45, x1: 70, y1: 55 } }]), 2, plan(), 1);
+    expect(p.fixtures[0]).toMatchObject({ x: 120, y: 100, width: 40, depth: 20, rotation: 0 });
+  });
+});
+
+describe("wall scan without arcs", () => {
+  it("adds an unreported window in an exterior wall and a sliding door in an interior wall", () => {
+    const m = plan();
+    // A closet-style sliding door: gap in the shared wall at y 120–145 with one thin track line.
+    for (let y = 120; y <= 145; y++) for (let x = 200; x <= 205; x++) m.data[y * m.w + x] = x === 202 ? 1 : 0;
+    const raw: RawDetection = {
+      rooms: [
+        { name: "A", type: "bedroom", polygon: [{ x: 27, y: 28 }, { x: 99, y: 27 }, { x: 99, y: 74 }, { x: 26, y: 74 }], labeledWidthIn: null, labeledDepthIn: null },
+        { name: "B", type: "closet", polygon: [{ x: 104, y: 26 }, { x: 174, y: 26 }, { x: 175, y: 74 }, { x: 104, y: 75 }], labeledWidthIn: null, labeledDepthIn: null },
+      ],
+      doors: [], windows: [], fixtures: [], dimensionLines: [], notes: "",
+    };
+    const p = buildProposal(raw, 2, m, 1, m);
+    // The window in A's top wall (x 100–140) is the only exterior gap with lines in it.
+    expect(p.addedWindows).toBe(1);
+    expect(p.openings.find((o) => o.shape === "window")).toMatchObject({ x: 120.5, rotation: 0 });
+    // The doorway at y 80–110 (no arc, clear) is an opening; y 120–145 (track line) is a sliding door.
+    const others = p.openings.filter((o) => o.shape === "opening").map((o) => [o.label, o.y]);
+    expect(others).toEqual(expect.arrayContaining([["Opening", 95.5], ["Sliding door", 133]]));
+  });
+});
+
+describe("closet sliding doors", () => {
+  it("turns an open closet front with a track line into a wall with a sliding door", () => {
+    const m = plan();
+    // Replace the shared wall between A and closet B with a sliding door: one thin line, short stubs.
+    for (let y = 56; y <= 144; y++) for (let x = 200; x <= 205; x++) m.data[y * m.w + x] = x === 202 ? 1 : 0;
+    const raw: RawDetection = {
+      rooms: [
+        { name: "A", type: "bedroom", polygon: [{ x: 27, y: 28 }, { x: 99, y: 27 }, { x: 99, y: 74 }, { x: 26, y: 74 }], labeledWidthIn: null, labeledDepthIn: null },
+        { name: "Closet", type: "closet", polygon: [{ x: 104, y: 26 }, { x: 174, y: 26 }, { x: 175, y: 74 }, { x: 104, y: 75 }], labeledWidthIn: null, labeledDepthIn: null },
+      ],
+      doors: [], windows: [], fixtures: [], dimensionLines: [], notes: "",
+    };
+    const p = buildProposal(raw, 2, m, 1, m);
+    const closet = p.rooms[1];
+    expect(closet.walls![3]).toBe(6); // left edge is a wall again
+    expect(p.rooms[0].walls![1]).toBe(6); // and so is the bedroom's matching edge
+    expect(p.openings.find((o) => o.label === "Sliding door")).toMatchObject({ shape: "opening", x: 202, rotation: 90 });
   });
 });

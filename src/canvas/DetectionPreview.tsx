@@ -5,12 +5,13 @@ import { bbox, doorSwing, itemCorners } from "../model/geometry";
 const TEAL = "#0d9488";
 
 /** Auto-detect results drawn over the plan while you review them. Nothing is saved yet. */
-export function DetectionPreview({ proposal, keepRoom, keepDoors, keepWindows, keepOpenings, ppi, stageScale }: {
+export function DetectionPreview({ proposal, keepRoom, keepDoors, keepWindows, keepOpenings, keepFixtures, ppi, stageScale }: {
   proposal: Proposal;
   keepRoom: boolean[];
   keepDoors: boolean;
   keepWindows: boolean;
   keepOpenings: boolean;
+  keepFixtures: boolean;
   ppi: number;
   stageScale: number;
 }) {
@@ -18,6 +19,10 @@ export function DetectionPreview({ proposal, keepRoom, keepDoors, keepWindows, k
   const px = (v: number) => v * ppi;
   return (
     <Group listening={false}>
+      {keepFixtures && proposal.fixtures.map((f, i) => (
+        <Line key={`f${i}`} points={itemCorners(f).flatMap((p) => [px(p.x), px(p.y)])} closed
+          fill="rgba(71,85,105,0.18)" stroke="#475569" strokeWidth={1.2 / s} dash={[3 / s, 2 / s]} />
+      ))}
       {proposal.rooms.map((r, i) => {
         const on = keepRoom[i];
         const b = bbox(r.polygon);

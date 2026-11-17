@@ -1,4 +1,4 @@
-import type { Item } from "../../shared/schemas";
+import type { FixtureKind, Item } from "../../shared/schemas";
 import type { Side } from "../model/geometry";
 
 export interface ClearanceRule {
@@ -89,6 +89,40 @@ export const CUSTOM_SHAPES: CatalogEntry[] = [
   { key: "custom-L", label: "L-shape", category: "", group: "Custom", shape: "L", width: 72, depth: 60, height: null },
   { key: "custom-U", label: "U-shape", category: "", group: "Custom", shape: "U", width: 96, depth: 72, height: null },
 ];
+
+export const FIXTURE_LABEL: Record<FixtureKind, string> = {
+  counter: "Counter",
+  island: "Island",
+  sink: "Sink",
+  range: "Range",
+  fridge: "Refrigerator",
+  dishwasher: "Dishwasher",
+  toilet: "Toilet",
+  tub: "Bathtub",
+  shower: "Shower",
+  vanity: "Vanity",
+  washer: "Washer",
+  dryer: "Dryer",
+  "water heater": "Water heater",
+  fireplace: "Fireplace",
+  stairs: "Stairs",
+  shelf: "Shelving",
+  other: "Fixture",
+};
+
+/** Built-in features (auto-detect adds these too). Width runs along the wall; the front faces away from it. */
+export const FIXTURES: CatalogEntry[] = (
+  [
+    ["toilet", 20, 28], ["tub", 60, 30], ["shower", 36, 36], ["vanity", 48, 22], ["sink", 33, 22],
+    ["counter", 96, 25], ["island", 72, 36], ["range", 30, 26], ["fridge", 36, 30], ["dishwasher", 24, 24],
+    ["washer", 27, 30], ["dryer", 27, 30], ["water heater", 24, 24], ["fireplace", 60, 20], ["stairs", 36, 120], ["shelf", 48, 14],
+  ] as Array<[FixtureKind, number, number]>
+).map(([kind, width, depth]) => ({
+  key: `fixture-${kind.replace(" ", "-")}`, label: FIXTURE_LABEL[kind], category: kind, group: "Fixtures", shape: "fixture" as const,
+  width, depth, height: null,
+}));
+
+export const ALL_ENTRIES: CatalogEntry[] = [...CUSTOM_SHAPES, ...CATALOG, ...FIXTURES];
 
 /** Categories offered when labeling a custom shape. */
 export const CATEGORIES = Array.from(new Set(CATALOG.map((c) => c.category)))

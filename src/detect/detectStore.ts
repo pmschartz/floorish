@@ -15,6 +15,7 @@ interface DetectState {
   keepDoors: boolean;
   keepWindows: boolean;
   keepOpenings: boolean;
+  keepFixtures: boolean;
   replace: boolean;
   start: () => Promise<void>;
   cancel: () => void;
@@ -34,6 +35,7 @@ export const useDetect = create<DetectState>((set, get) => ({
   keepDoors: true,
   keepWindows: true,
   keepOpenings: true,
+  keepFixtures: true,
   replace: true,
 
   set: (patch) => set(patch),
@@ -54,12 +56,12 @@ export const useDetect = create<DetectState>((set, get) => ({
       );
       if (signal.aborted) return;
       set({ step: "Snapping to walls…" });
-      const built = buildProposal(raw, img.factor, img.mask, plan.pxPerInch);
+      const built = buildProposal(raw, img.factor, img.mask, plan.pxPerInch, img.ink);
       const current = usePlan.getState().plan;
       // Rooms you already named keep your names (e.g. a bedroom you use as an office).
       const { rooms, detectedName } = carryOverNames(built.rooms, current?.rooms ?? []);
       const proposal = { ...built, rooms };
-      const hasExisting = !!current && (current.rooms.length > 0 || current.items.some((i) => ["door", "window", "opening"].includes(i.shape)));
+      const hasExisting = !!current && (current.rooms.length > 0 || current.items.some((i) => ["door", "window", "opening", "fixture"].includes(i.shape)));
       set({
         status: "review",
         proposal,
@@ -68,6 +70,7 @@ export const useDetect = create<DetectState>((set, get) => ({
         keepDoors: true,
         keepWindows: true,
         keepOpenings: true,
+        keepFixtures: true,
         replace: hasExisting,
       });
     } catch (e) {
@@ -87,12 +90,12 @@ export const useDetect = create<DetectState>((set, get) => ({
     const p = s.proposal;
     if (!p) return;
     const keepItem = (shape: string) =>
-      shape === "door" ? s.keepDoors : shape === "window" ? s.keepWindows : s.keepOpenings;
+      shape === "door" ? s.keepDoors : shape === "window" ? s.keepWindows : shape === "fixture" ? s.keepFixtures : s.keepOpenings;
     usePlan.getState().applyDetection({
       ppi: p.ppi,
       wallThickness: p.wallThickness,
       rooms: p.rooms.filter((_, i) => s.keepRoom[i]),
-      openings: p.openings.filter((o) => keepItem(o.shape)),
+      openings: [...p.openings, ...p.fixtures].filter((o) => keepItem(o.shape)),
       replace: s.replace,
     });
     usePlan.getState().setCleanView(true);

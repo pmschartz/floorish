@@ -1,5 +1,5 @@
-import { ITEM_STATUSES, ROOM_TYPES, type Item, type Room } from "../../shared/schemas";
-import { CATEGORIES, clearancesFor } from "../catalog/furniture";
+import { FIXTURE_KINDS, ITEM_STATUSES, ROOM_TYPES, type FixtureKind, type Item, type Room } from "../../shared/schemas";
+import { CATEGORIES, clearancesFor, FIXTURE_LABEL } from "../catalog/furniture";
 import { bbox, polygonArea } from "../model/geometry";
 import { formatArea, formatLength } from "../model/units";
 import { effectivePpi, usePlan } from "../state/planStore";
@@ -27,6 +27,8 @@ function ItemInspector({ item }: { item: Item }) {
   const set = (patch: Partial<Item>) => updateItem(item.id, patch);
   const rules = clearancesFor(item);
   const isOpening = item.shape === "door" || item.shape === "window" || item.shape === "opening";
+  const isFixture = item.shape === "fixture";
+  const builtIn = isOpening || isFixture; // part of the house, not furniture you shop for
 
   return (
     <div className="inspector">
@@ -34,7 +36,23 @@ function ItemInspector({ item }: { item: Item }) {
         <span>Label</span>
         <input value={item.label} placeholder="e.g. Grandma's bookcase" onChange={(e) => set({ label: e.target.value })} />
       </label>
-      {!isOpening && (
+      {isFixture && (
+        <label className="field">
+          <span>Fixture</span>
+          <select
+            value={item.category}
+            onChange={(e) => {
+              const kind = e.target.value as FixtureKind;
+              // Keep a custom label; replace the default one.
+              const wasDefault = Object.values(FIXTURE_LABEL).includes(item.label);
+              set({ category: kind, ...(wasDefault ? { label: FIXTURE_LABEL[kind] } : {}) });
+            }}
+          >
+            {FIXTURE_KINDS.map((k) => <option key={k} value={k}>{FIXTURE_LABEL[k]}</option>)}
+          </select>
+        </label>
+      )}
+      {!builtIn && (
         <label className="field">
           <span>What is it?</span>
           <input
@@ -52,7 +70,7 @@ function ItemInspector({ item }: { item: Item }) {
       <div className="row">
         <LengthInput label="Width" value={item.width} units={units} onChange={(v) => v && set({ width: v })} />
         {!isOpening && <LengthInput label="Depth" value={item.depth} units={units} onChange={(v) => v && set({ depth: v })} />}
-        {!isOpening && (
+        {!builtIn && (
           <LengthInput label="Height" value={item.height} units={units} allowEmpty onChange={(v) => set({ height: v })} />
         )}
       </div>
@@ -71,7 +89,7 @@ function ItemInspector({ item }: { item: Item }) {
         {item.shape === "door" && (
           <button className="icon-btn" title="Move the hinge to the other end" onClick={() => set({ flip: !item.flip })}>⇋ Hinge</button>
         )}
-        {!isOpening && (
+        {!builtIn && (
           <label className="field small">
             <span>Color</span>
             <span className="color-field">
@@ -82,7 +100,7 @@ function ItemInspector({ item }: { item: Item }) {
         )}
       </div>
 
-      {!isOpening && (
+      {!builtIn && (
         <div className="segmented" role="group" aria-label="Status">
           {ITEM_STATUSES.map((s) => (
             <button key={s} className={item.status === s ? `on status-${s}` : ""} onClick={() => set({ status: s })}>
@@ -108,7 +126,7 @@ function ItemInspector({ item }: { item: Item }) {
         <button className="danger" onClick={() => removeItem(item.id)}>Delete</button>
       </div>
 
-      {!isOpening && <ShopPanel item={item} />}
+      {!builtIn && <ShopPanel item={item} />}
     </div>
   );
 }

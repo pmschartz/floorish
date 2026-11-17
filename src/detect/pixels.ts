@@ -2,16 +2,20 @@ import { maskFromRgba, type Mask } from "./snap";
 
 export const CLAUDE_MAX_SIDE = 2576; // Claude reads images up to this size at full detail
 
-async function loadImage(url: string): Promise<HTMLImageElement> {
-  const img = new Image();
-  img.src = url;
-  await img.decode();
-  return img;
+/** Wait for `load` rather than `decode()`: browsers may hold decoding until a hidden page is shown again. */
+function loadImage(url: string): Promise<HTMLImageElement> {
+  return new Promise((resolve, reject) => {
+    const img = new Image();
+    img.onload = () => resolve(img);
+    img.onerror = () => reject(new Error("Couldn't load the floor plan image."));
+    img.src = url;
+  });
 }
 
 /** The floor plan's wall mask at full resolution, plus a copy sized for Claude. */
 export async function preparePlanImage(url: string): Promise<{
-  mask: Mask;
+  mask: Mask; // dark strokes: walls
+  ink: Mask; // all line work, including thin gray lines like door arcs and fixture outlines
   forClaude: { base64: string; mediaType: "image/jpeg"; width: number; height: number };
   factor: number; // original px per sent px
 }> {
@@ -25,7 +29,10 @@ export async function preparePlanImage(url: string): Promise<{
   fctx.fillStyle = "#fff";
   fctx.fillRect(0, 0, w, h);
   fctx.drawImage(img, 0, 0);
-  const mask = maskFromRgba(fctx.getImageData(0, 0, w, h).data, w, h);
+  const rgba = fctx.getImageData(0, 0, w, h).data;
+  const mask = maskFromRgba(rgba, w, h);
+  // Room tints (peach, blue, beige) sit above ~195 luminance; line work is darker.
+  const ink = maskFromRgba(rgba, w, h, 185);
 
   const k = Math.min(1, CLAUDE_MAX_SIDE / Math.max(w, h));
   const sw = Math.round(w * k), sh = Math.round(h * k);
@@ -39,6 +46,7 @@ export async function preparePlanImage(url: string): Promise<{
 
   return {
     mask,
+    ink,
     forClaude: { base64: dataUrl.slice(dataUrl.indexOf(",") + 1), mediaType: "image/jpeg", width: sw, height: sh },
     factor: w / sw,
   };

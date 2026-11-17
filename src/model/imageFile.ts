@@ -57,8 +57,11 @@ async function fromSvg(file: File): Promise<PreparedImage> {
   const url = URL.createObjectURL(file);
   try {
     const img = new Image();
-    img.src = url;
-    await img.decode();
+    await new Promise<void>((resolve, reject) => {
+      img.onload = () => resolve();
+      img.onerror = () => reject(new Error("Couldn't read that SVG."));
+      img.src = url;
+    });
     const w0 = img.naturalWidth || 1200, h0 = img.naturalHeight || 900;
     const k = Math.min(MAX_SIDE / Math.max(w0, h0), 2);
     const canvas = document.createElement("canvas");

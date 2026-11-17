@@ -163,6 +163,7 @@ export interface SnappedOpening {
   start: number; // along the wall
   end: number;
   thickness: number | null; // px, null if no wall was found
+  gapFound: boolean; // the wall really is interrupted here
 }
 
 /**
@@ -179,7 +180,7 @@ export function snapOpening(a: Point, b: Point, m: Mask, o: SnapOpts): SnappedOp
 
   // The wall continues on both sides of the opening, so look along a wider span.
   const band = findWallBand(m, axis, at, start - len, end + len, o, 0.3);
-  if (!band) return { axis, perp: at, start, end, thickness: null };
+  if (!band) return { axis, perp: at, start, end, thickness: null, gapFound: false };
 
   const thick = band.hi - band.lo + 1;
   const fill = (s: number) => {
@@ -188,6 +189,7 @@ export function snapOpening(a: Point, b: Point, m: Mask, o: SnapOpts): SnappedOp
     return n / thick;
   };
   const mid = Math.round((start + end) / 2);
+  let gapFound = false;
   if (fill(mid) < 0.6) {
     let s0 = mid, s1 = mid;
     const limit = len * 1.5;
@@ -197,7 +199,8 @@ export function snapOpening(a: Point, b: Point, m: Mask, o: SnapOpts): SnappedOp
     if (gap >= len * 0.5 && gap <= len * 1.6) {
       start = s0;
       end = s1 + 1;
+      gapFound = true;
     }
   }
-  return { axis, perp: (band.lo + band.hi + 1) / 2, start, end, thickness: thick };
+  return { axis, perp: (band.lo + band.hi + 1) / 2, start, end, thickness: thick, gapFound };
 }

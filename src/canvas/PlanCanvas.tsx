@@ -2,7 +2,7 @@ import type Konva from "konva";
 import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
 import { Group, Image as KImage, Layer, Line, Rect, Stage, Transformer } from "react-konva";
 import type { Point } from "../../shared/schemas";
-import { CATALOG, clearancesFor, CUSTOM_SHAPES, PASSIVE_CATEGORIES } from "../catalog/furniture";
+import { ALL_ENTRIES, clearancesFor, PASSIVE_CATEGORIES } from "../catalog/furniture";
 import type { Issue } from "../checks/layoutChecks";
 import { clearanceZone } from "../model/geometry";
 import { formatLength } from "../model/units";
@@ -46,7 +46,7 @@ export function PlanCanvas({ issues }: { issues: Issue[] }) {
   // While reviewing a detection that will replace your rooms, show only the new ones.
   const hideReplaced = !!review?.replace;
   const shownRooms = hideReplaced ? [] : plan.rooms;
-  const isOpening = (shape: string) => shape === "door" || shape === "window" || shape === "opening";
+  const isOpening = (shape: string) => shape === "door" || shape === "window" || shape === "opening" || shape === "fixture";
 
   const wrapRef = useRef<HTMLDivElement>(null);
   const stageRef = useRef<Konva.Stage>(null);
@@ -250,7 +250,7 @@ export function PlanCanvas({ issues }: { issues: Issue[] }) {
   const onDrop = (e: React.DragEvent) => {
     e.preventDefault();
     const key = e.dataTransfer.getData(DRAG_MIME);
-    const entry = [...CATALOG, ...CUSTOM_SHAPES].find((c) => c.key === key);
+    const entry = ALL_ENTRIES.find((c) => c.key === key);
     const stage = stageRef.current;
     if (!entry || !stage || !ppi) return;
     stage.setPointersPositions(e.nativeEvent);
@@ -273,7 +273,7 @@ export function PlanCanvas({ issues }: { issues: Issue[] }) {
   }, [issues]);
 
   const items = useMemo(() => {
-    const rank = (c: string, s: string) => (c === "rug" ? 0 : s === "door" || s === "window" ? 2 : 1);
+    const rank = (c: string, s: string) => (s === "fixture" ? 0 : c === "rug" ? 0.5 : s === "door" || s === "window" || s === "opening" ? 2 : 1);
     return [...plan.items].sort((a, b) => rank(a.category, a.shape) - rank(b.category, b.shape));
   }, [plan.items]);
 
@@ -388,7 +388,8 @@ export function PlanCanvas({ issues }: { issues: Issue[] }) {
         <Layer listening={false}>
           {review?.proposal && (
             <DetectionPreview proposal={review.proposal} keepRoom={review.keepRoom} keepDoors={review.keepDoors}
-              keepWindows={review.keepWindows} keepOpenings={review.keepOpenings} ppi={review.proposal.ppi} stageScale={s} />
+              keepWindows={review.keepWindows} keepOpenings={review.keepOpenings} keepFixtures={review.keepFixtures}
+              ppi={review.proposal.ppi} stageScale={s} />
           )}
           {(tool === "room" || tool === "calibrate") && draft.length > 0 && (
             <DraftPath points={draft} hover={calib ? null : hover} stageScale={s} color={draftColor} />

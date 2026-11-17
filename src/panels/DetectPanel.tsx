@@ -5,6 +5,13 @@ import { bbox, polygonArea } from "../model/geometry";
 import { formatArea, formatLength } from "../model/units";
 import { usePlan } from "../state/planStore";
 
+/** "2 Toilets, Bathtub, 3 Counters" */
+function fixtureSummary(labels: string[]): string {
+  const counts = new Map<string, number>();
+  for (const l of labels) counts.set(l, (counts.get(l) ?? 0) + 1);
+  return [...counts].map(([l, n]) => (n > 1 ? `${n} ${l}${l.endsWith("s") ? "" : "s"}` : l)).join(", ");
+}
+
 /** Right-hand panel while auto-detect runs and while you review what it found. */
 export function DetectPanel() {
   const s = useDetect();
@@ -44,7 +51,7 @@ export function DetectPanel() {
   const doors = count("door"), windows = count("window"), others = count("opening");
   const keptRooms = s.keepRoom.filter(Boolean).length;
   const existingRooms = plan.rooms.length;
-  const existingOpenings = plan.items.filter((i) => ["door", "window", "opening"].includes(i.shape)).length;
+  const existingOpenings = plan.items.filter((i) => ["door", "window", "opening", "fixture"].includes(i.shape)).length;
   const off = p.scaleDisagreement ? Math.abs(1 - p.scaleDisagreement) : 0;
 
   const setRoom = (i: number, patch: Partial<Room>) => {
@@ -56,9 +63,19 @@ export function DetectPanel() {
     <div className="inspector detect-review">
       <h3>Review what was found</h3>
       <p className="small">
-        {p.rooms.length} rooms, {doors} doors, {windows} windows{others ? `, ${others} other openings` : ""}.
+        {p.rooms.length} rooms, {doors} doors, {windows} windows{others ? `, ${others} other openings` : ""}, {p.fixtures.length} fixtures.
         Outlined in teal on the plan. Untick anything that's wrong; you can fix the rest afterwards.
       </p>
+      {(p.correctedDoors > 0 || p.addedDoors > 0 || p.addedWindows > 0) && (
+        <p className="small muted">
+          Checked against the drawing:{" "}
+          {[
+            p.correctedDoors > 0 && `fixed the hinge or swing of ${p.correctedDoors} ${p.correctedDoors === 1 ? "door" : "doors"}`,
+            p.addedDoors > 0 && `found ${p.addedDoors} more ${p.addedDoors === 1 ? "door or opening" : "doors and openings"}`,
+            p.addedWindows > 0 && `found ${p.addedWindows} more ${p.addedWindows === 1 ? "window" : "windows"}`,
+          ].filter(Boolean).join(", ")}.
+        </p>
+      )}
 
       <p className={`small ${p.ppiSource === "doors" || off > 0.08 ? "notice" : "muted"}`}>
         {p.ppiSource === "plan" && "Using your calibrated scale."}
@@ -98,10 +115,16 @@ export function DetectPanel() {
         {others > 0 && (
           <label><input type="checkbox" checked={s.keepOpenings} onChange={(e) => s.set({ keepOpenings: e.target.checked })} /> Other openings ({others})</label>
         )}
+        {p.fixtures.length > 0 && (
+          <label>
+            <input type="checkbox" checked={s.keepFixtures} onChange={(e) => s.set({ keepFixtures: e.target.checked })} />{" "}
+            Fixtures ({fixtureSummary(p.fixtures.map((f) => f.label))})
+          </label>
+        )}
         {(existingRooms > 0 || existingOpenings > 0) && (
           <label>
             <input type="checkbox" checked={s.replace} onChange={(e) => s.set({ replace: e.target.checked })} />{" "}
-            Replace my {existingRooms} {existingRooms === 1 ? "room" : "rooms"} and {existingOpenings} {existingOpenings === 1 ? "door/window" : "doors/windows"} (furniture stays)
+            Replace my {existingRooms} {existingRooms === 1 ? "room" : "rooms"} and {existingOpenings} doors, windows and fixtures (furniture stays)
           </label>
         )}
       </div>

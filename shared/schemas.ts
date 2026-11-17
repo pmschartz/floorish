@@ -65,7 +65,7 @@ export const ItemSchema = z.object({
   catalogKey: z.string(), // "custom" for user-drawn shapes
   label: z.string(),
   category: z.string(),
-  shape: z.enum(["rect", "circle", "L", "U", "door", "window", "opening"]),
+  shape: z.enum(["rect", "circle", "L", "U", "door", "window", "opening", "fixture"]),
   x: z.number(), // center, inches
   y: z.number(),
   width: z.number(),
@@ -184,6 +184,14 @@ export function emptyStyle(): StyleProfile {
 
 // ---- Floor plan auto-detection (coordinates are pixels of the image sent to Claude) ----
 
+/** Built-in features of a home, kept and redrawn from the floor plan. Stored as items with shape "fixture". */
+export const FIXTURE_KINDS = [
+  "counter", "island", "sink", "range", "fridge", "dishwasher",
+  "toilet", "tub", "shower", "vanity", "washer", "dryer", "water heater",
+  "fireplace", "stairs", "shelf", "other",
+] as const;
+export type FixtureKind = (typeof FIXTURE_KINDS)[number];
+
 const Px = z.object({ x: z.number(), y: z.number() });
 
 export const RawDetectionSchema = z.object({
@@ -205,6 +213,13 @@ export const RawDetectionSchema = z.object({
     }),
   ),
   windows: z.array(z.object({ start: Px, end: Px })),
+  fixtures: z.array(
+    z.object({
+      kind: z.enum(FIXTURE_KINDS),
+      box: z.object({ x0: z.number(), y0: z.number(), x1: z.number(), y1: z.number() }),
+      against: z.enum(["top", "bottom", "left", "right", "none"]),
+    }),
+  ),
   dimensionLines: z.array(z.object({ start: Px, end: Px, text: z.string(), inches: z.number() })),
   notes: z.string(),
 });

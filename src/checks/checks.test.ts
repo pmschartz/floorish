@@ -122,3 +122,24 @@ describe("U-shaped sectional", () => {
     expect(runLayoutChecks([sectional(), placed], [room]).filter((i) => i.kind === "overlap")).toHaveLength(0);
   });
 });
+
+describe("fixtures in layout checks", () => {
+  it("flags furniture on a counter but not a sink set into it", () => {
+    const counter = item({ category: "counter", shape: "fixture", x: 72, y: 13, width: 96, depth: 25 });
+    const sink = item({ category: "sink", shape: "fixture", x: 72, y: 13, width: 33, depth: 22 });
+    const chair = item({ category: "armchair", x: 40, y: 20, width: 30, depth: 30 });
+    const overlaps = runLayoutChecks([counter, sink, chair], [room]).filter((i) => i.kind === "overlap");
+    expect(overlaps).toHaveLength(1);
+    expect(overlaps[0].itemIds).toContain(chair.id);
+  });
+});
+
+describe("door swings and fixtures", () => {
+  it("doesn't flag fixtures from the drawing, but does flag furniture", () => {
+    const door = item({ category: "door", shape: "door", x: 20, y: 1, width: 30, depth: 2 });
+    const vanity = item({ category: "vanity", shape: "fixture", x: 20, y: 20, width: 30, depth: 20 });
+    expect(runLayoutChecks([door, vanity], [room]).filter((i) => i.kind === "door-swing")).toHaveLength(0);
+    const chair = item({ category: "armchair", x: 20, y: 20, width: 20, depth: 20 });
+    expect(runLayoutChecks([door, chair], [room]).filter((i) => i.kind === "door-swing")).toHaveLength(1);
+  });
+});

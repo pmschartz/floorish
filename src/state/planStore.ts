@@ -48,12 +48,13 @@ interface PlanState {
     ppi: number;
     wallThickness: number;
     rooms: Omit<Room, "id">[];
-    openings: Omit<Item, "id">[];
+    openings: Omit<Item, "id">[]; // doors, windows, openings and fixtures
     replace: boolean;
   }) => void;
 }
 
-const OPENING_SHAPES = new Set<Item["shape"]>(["door", "window", "opening"]);
+// Parts of the building itself (replaced when you re-run auto-detect), as opposed to furniture.
+const BUILT_IN_SHAPES = new Set<Item["shape"]>(["door", "window", "opening", "fixture"]);
 
 const pref = (key: string) => {
   try {
@@ -194,7 +195,7 @@ export const usePlan = create<PlanState>()(
             wallThickness,
             rooms: [...(replace ? [] : p.rooms), ...rooms.map((r) => ({ ...r, id: nanoid(8) }))],
             items: [
-              ...(replace ? p.items.filter((i) => !OPENING_SHAPES.has(i.shape)) : p.items),
+              ...(replace ? p.items.filter((i) => !BUILT_IN_SHAPES.has(i.shape)) : p.items),
               ...openings.map((i) => ({ ...i, id: nanoid(8) })),
             ],
           }));

@@ -39,6 +39,8 @@ export function runLayoutChecks(items: Item[], rooms: Room[], fmt: (inches: numb
     for (let b = a + 1; b < solids.length; b++) {
       const A = solids[a], B = solids[b];
       if (nests(A.category, B.category)) continue;
+      // Fixtures stack on purpose (a sink in a counter, a dishwasher under it).
+      if (A.shape === "fixture" && B.shape === "fixture") continue;
       if (partsOverlap(parts.get(A.id)!, parts.get(B.id)!)) {
         issues.push({
           id: `overlap:${A.id}:${B.id}`,
@@ -54,7 +56,8 @@ export function runLayoutChecks(items: Item[], rooms: Room[], fmt: (inches: numb
   // 2. Outside every room (only once rooms have been traced)
   const traced = rooms.filter((r) => r.polygon.length >= 3);
   if (traced.length) {
-    for (const it of solids) {
+    // Fixtures come from the drawing and hug the walls; only check furniture.
+    for (const it of solids.filter((i) => i.shape !== "fixture")) {
       const c = corners.get(it.id)!;
       if (!traced.some((r) => polygonInside(c, r.polygon))) {
         issues.push({
@@ -105,7 +108,8 @@ export function runLayoutChecks(items: Item[], rooms: Room[], fmt: (inches: numb
   // 4. Door swings
   for (const door of items.filter((i) => i.shape === "door")) {
     const swing = doorSwing(door);
-    for (const it of solids) {
+    // Fixtures come from the drawing, which is drawn so its doors clear them; check furniture.
+    for (const it of solids.filter((i) => i.shape !== "fixture")) {
       if (partsOverlap([swing], parts.get(it.id)!)) {
         issues.push({
           id: `door:${door.id}:${it.id}`,
