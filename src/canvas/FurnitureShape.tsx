@@ -57,6 +57,8 @@ function FurnitureShapeInner({ item, ppi, stageScale, units, selected, issue, dr
   };
 
   const fontSize = 11 / stageScale;
+  const turn = ((item.rotation % 360) + 360) % 360;
+  const upsideDown = turn > 90 && turn < 270;
   // L/U shapes have an open middle, so the label goes in the back run of seats.
   const labelH = item.shape === "L" || item.shape === "U" ? armDepth(item.shape, item.width, item.depth) * ppi : d;
   const showLabel = Math.min(w, labelH) * stageScale > 22;
@@ -229,10 +231,13 @@ function FurnitureShapeInner({ item, ppi, stageScale, units, selected, issue, dr
           fill={item.color} stroke="#0003" strokeWidth={0.5 / stageScale} listening={false} />
       )}
       {showLabel && !builtIn && (
+        // Turned more than a quarter turn, the label spins back so it never reads upside down
+        // (it covers the same area of the piece either way).
+        <Group rotation={upsideDown ? 180 : 0} listening={false}>
         <Text
           text={`${name}\n${formatDims(item.width, item.depth, units)}`}
           x={-w / 2}
-          y={-d / 2}
+          y={upsideDown ? d / 2 - labelH : -d / 2}
           width={w}
           height={labelH}
           align="center"
@@ -245,6 +250,7 @@ function FurnitureShapeInner({ item, ppi, stageScale, units, selected, issue, dr
           wrap="char"
           ellipsis
         />
+        </Group>
       )}
     </Group>
   );
