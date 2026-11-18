@@ -1,5 +1,7 @@
 # House Planner
 
+[![Tests](https://github.com/pmschartz/house-planning/actions/workflows/test.yml/badge.svg?branch=main)](https://github.com/pmschartz/house-planning/actions/workflows/test.yml)
+
 Upload a floor plan, lay out the furniture you have at real scale, and find furniture that fits.
 
 - **Floor plans**: PNG, JPG, WebP, SVG, or PDF (page 1). Or start on a blank grid.
