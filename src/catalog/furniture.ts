@@ -27,6 +27,11 @@ const bedSides = (dist = 24): ClearanceRule[] => [
   { side: "front", dist, why: "walkway at the foot of the bed", allow: ["bench", "rug"] },
 ];
 const front = (dist: number, why: string, allow?: string[]): ClearanceRule[] => [{ side: "front", dist, why, allow }];
+/** Room beside a car or truck to open its doors and get out. */
+const carDoors = (dist: number): ClearanceRule[] => [
+  { side: "left", dist, why: "room to open the doors and get out" },
+  { side: "right", dist, why: "room to open the doors and get out" },
+];
 const allSides = (dist: number, why: string, allow?: string[]): ClearanceRule[] =>
   (["front", "back", "left", "right"] as Side[]).map((side) => ({ side, dist, why, allow }));
 
@@ -101,6 +106,41 @@ export const CATALOG: CatalogEntry[] = [
   { key: "plant-stand", label: "Plant stand", category: "plant stand", group: "Plants", shape: "circle", width: 16, depth: 16, height: 30 },
   { key: "planter-box", label: "Planter box", category: "planter", group: "Plants", shape: "rect", width: 36, depth: 12, height: 24 },
   { key: "plant-shelf", label: "Plant shelf", category: "plant shelf", group: "Plants", shape: "rect", width: 36, depth: 14, height: 60 },
+
+  // Garage (vehicles face +y: the front of the car is the front of the shape). Sizes are
+  // typical bodies without mirrors; doors need about 30" to open and let you out.
+  { key: "car-compact", label: "Compact car", category: "car", group: "Garage", shape: "rect", width: 70, depth: 178, height: 57, clearances: carDoors(30) },
+  { key: "car-sedan", label: "Midsize sedan", category: "car", group: "Garage", shape: "rect", width: 73, depth: 192, height: 57, clearances: carDoors(30) },
+  { key: "car-suv", label: "SUV", category: "car", group: "Garage", shape: "rect", width: 78, depth: 196, height: 70, clearances: carDoors(30) },
+  { key: "car-minivan", label: "Minivan", category: "car", group: "Garage", shape: "rect", width: 79, depth: 204, height: 70, clearances: carDoors(30) },
+  { key: "truck-pickup", label: "Pickup truck (crew cab)", category: "truck", group: "Garage", shape: "rect", width: 80, depth: 232, height: 76,
+    clearances: [...carDoors(30), { side: "back", dist: 30, why: "room to drop the tailgate" }] },
+  { key: "motorcycle", label: "Motorcycle", category: "motorcycle", group: "Garage", shape: "rect", width: 32, depth: 86, height: 45,
+    clearances: [{ side: "left", dist: 24, why: "room to get on and off" }] },
+  { key: "bicycle", label: "Bicycle", category: "bicycle", group: "Garage", shape: "rect", width: 24, depth: 70, height: 42 },
+  { key: "riding-mower", label: "Riding mower", category: "mower", group: "Garage", shape: "rect", width: 46, depth: 68, height: 44 },
+  { key: "push-mower", label: "Push mower", category: "mower", group: "Garage", shape: "rect", width: 22, depth: 56, height: 40 },
+  { key: "snowblower", label: "Snowblower", category: "snowblower", group: "Garage", shape: "rect", width: 28, depth: 56, height: 44 },
+  { key: "workbench-6", label: "Workbench 6'", category: "workbench", group: "Garage", shape: "rect", width: 72, depth: 30, height: 36,
+    clearances: front(36, "room to stand and work") },
+  { key: "workbench-8", label: "Workbench 8'", category: "workbench", group: "Garage", shape: "rect", width: 96, depth: 30, height: 36,
+    clearances: front(36, "room to stand and work") },
+  { key: "tool-chest", label: "Rolling tool chest", category: "tool chest", group: "Garage", shape: "rect", width: 41, depth: 24, height: 40,
+    clearances: front(30, "room to open the drawers") },
+  { key: "tool-cabinet", label: "Tool cabinet (tall)", category: "tool chest", group: "Garage", shape: "rect", width: 56, depth: 24, height: 72,
+    clearances: front(30, "room to open the drawers") },
+  { key: "garage-shelving", label: "Garage shelving", category: "shelving", group: "Garage", shape: "rect", width: 48, depth: 24, height: 72,
+    clearances: front(30, "room to reach the shelves") },
+  { key: "storage-cabinet", label: "Storage cabinet", category: "storage cabinet", group: "Garage", shape: "rect", width: 36, depth: 24, height: 72,
+    clearances: front(30, "room to open the doors") },
+  { key: "table-saw", label: "Table saw", category: "table saw", group: "Garage", shape: "rect", width: 44, depth: 30, height: 34,
+    clearances: [{ side: "front", dist: 48, why: "room to feed boards in" }, { side: "back", dist: 48, why: "room for boards coming out" }] },
+  { key: "chest-freezer", label: "Chest freezer", category: "freezer", group: "Garage", shape: "rect", width: 48, depth: 28, height: 34,
+    clearances: front(24, "room to stand at the open lid") },
+  { key: "garage-fridge", label: "Spare fridge", category: "refrigerator", group: "Garage", shape: "rect", width: 30, depth: 32, height: 67,
+    clearances: front(36, "room to open the door") },
+  { key: "trash-cart", label: "Trash or recycling cart", category: "trash cart", group: "Garage", shape: "rect", width: 29, depth: 35, height: 46 },
+  { key: "kayak", label: "Kayak (on a rack)", category: "kayak", group: "Garage", shape: "rect", width: 28, depth: 120, height: null },
 
   // Rugs
   { key: "rug-5x8", label: "Rug 5×8", category: "rug", group: "Rugs", shape: "rect", width: 60, depth: 96, height: null },

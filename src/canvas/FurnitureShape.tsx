@@ -169,6 +169,36 @@ function FurnitureShapeInner({ item, ppi, stageScale, units, selected, issue, dr
       );
       break;
     default:
+      if (item.shape === "rect" && (item.category === "car" || item.category === "truck")) {
+        // Seen from above, front (hood) toward +y: rounded body, windshield, roof, rear window;
+        // a truck has a cab up front and an open bed behind.
+        const lw = 1 / stageScale;
+        const inset = w * 0.1;
+        const truck = item.category === "truck";
+        const shield = d / 2 - d * (truck ? 0.3 : 0.32); // where the windshield meets the hood
+        const roofBack = truck ? shield - d * 0.2 : -d / 2 + d * 0.22;
+        body = (
+          <>
+            <Rect x={-w / 2} y={-d / 2} width={w} height={d} fill={fill} stroke={stroke} strokeWidth={strokeWidth}
+              dash={dash} cornerRadius={Math.min(w, d) * 0.22} />
+            {/* windshield and roof */}
+            <Line points={[-w / 2 + inset, shield, w / 2 - inset, shield, w / 2 - inset * 1.4, shield - d * 0.07, -w / 2 + inset * 1.4, shield - d * 0.07]}
+              closed stroke={stroke} strokeWidth={lw} opacity={0.8} />
+            <Rect x={-w / 2 + inset * 1.4} y={roofBack} width={w - inset * 2.8} height={shield - d * 0.07 - roofBack}
+              stroke={stroke} strokeWidth={lw} opacity={0.6} cornerRadius={inset * 0.6} />
+            {truck ? (
+              // the bed
+              <Rect x={-w / 2 + inset * 0.8} y={-d / 2 + inset * 0.8} width={w - inset * 1.6} height={roofBack - (-d / 2 + inset * 0.8) - d * 0.03}
+                stroke={stroke} strokeWidth={lw} opacity={0.8} cornerRadius={inset * 0.3} />
+            ) : (
+              // rear window
+              <Line points={[-w / 2 + inset * 1.4, roofBack, w / 2 - inset * 1.4, roofBack, w / 2 - inset, roofBack - d * 0.05, -w / 2 + inset, roofBack - d * 0.05]}
+                closed stroke={stroke} strokeWidth={lw} opacity={0.8} />
+            )}
+          </>
+        );
+        break;
+      }
       body = (
         <Rect x={-w / 2} y={-d / 2} width={w} height={d} fill={fill} stroke={stroke} strokeWidth={strokeWidth}
           dash={dash} cornerRadius={item.category === "rug" ? 0 : 1.5 / stageScale} />
