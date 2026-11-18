@@ -3,6 +3,10 @@ import type {
   Plan,
   PlanSummary,
   RawDetection,
+  RedesignRequest,
+  RedesignResponse,
+  RoomChatRequest,
+  RoomChatResponse,
   ShopRequest,
   ShopResults,
   SuggestRoomRequest,
@@ -45,4 +49,6 @@ export const api = {
   shop: (body: ShopRequest, signal?: AbortSignal) => req<ShopResults>("POST", "/api/shop", body, signal),
   suggestRoom: (body: SuggestRoomRequest) => req<SuggestRoomResponse>("POST", "/api/suggest-room", body),
   detect: (body: DetectRequest, signal?: AbortSignal) => req<RawDetection>("POST", "/api/detect", body, signal),
+  redesignRoom: (body: RedesignRequest) => req<RedesignResponse>("POST", "/api/redesign-room", body),
+  roomChat: (body: RoomChatRequest) => req<RoomChatResponse>("POST", "/api/room-chat", body),
 };

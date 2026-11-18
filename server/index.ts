@@ -1,9 +1,11 @@
 import express, { type NextFunction, type Request, type Response } from "express";
 import multer from "multer";
 import { ZodError } from "zod";
-import { DetectRequestSchema, PlanSchema, ShopRequestSchema, SuggestRoomRequestSchema } from "../shared/schemas";
+import { DetectRequestSchema, PlanSchema, RedesignRequestSchema, RoomChatRequestSchema, ShopRequestSchema, SuggestRoomRequestSchema } from "../shared/schemas";
 import { AiError, toAiError } from "./claude/client";
 import { detectFloorPlan } from "./claude/detectPlan";
+import { redesignRoom } from "./claude/redesignRoom";
+import { roomChat } from "./claude/roomChat";
 import { shopForItem } from "./claude/shop";
 import { suggestForRoom } from "./claude/suggestRoom";
 import * as store from "./storage";
@@ -64,6 +66,24 @@ app.post("/api/suggest-room", route(async (req, res) => {
   const body = SuggestRoomRequestSchema.parse(req.body);
   try {
     res.json(await suggestForRoom(body));
+  } catch (e) {
+    throw toAiError(e);
+  }
+}));
+
+app.post("/api/redesign-room", route(async (req, res) => {
+  const body = RedesignRequestSchema.parse(req.body);
+  try {
+    res.json(await redesignRoom(body));
+  } catch (e) {
+    throw toAiError(e);
+  }
+}));
+
+app.post("/api/room-chat", route(async (req, res) => {
+  const body = RoomChatRequestSchema.parse(req.body);
+  try {
+    res.json(await roomChat(body));
   } catch (e) {
     throw toAiError(e);
   }

@@ -43,6 +43,9 @@ interface PlanState {
   updateRoom: (id: string, patch: Partial<Room>) => void;
   removeRoom: (id: string) => void;
 
+  /** Any change to the plan as one undoable step (room versions, redesigns, chat edits). */
+  applyPlan: (fn: (p: Plan) => Plan) => void;
+
   /** Add (or swap in) rooms, doors and windows found by auto-detect, as one undoable step. */
   applyDetection: (d: {
     ppi: number;
@@ -187,6 +190,8 @@ export const usePlan = create<PlanState>()(
           edit((p) => ({ ...p, rooms: p.rooms.filter((r) => r.id !== id) }));
           if (get().selectedRoomId === id) set({ selectedRoomId: null });
         },
+
+        applyPlan: (fn) => edit(fn),
 
         applyDetection: ({ ppi, wallThickness, rooms, openings, replace }) => {
           edit((p) => ({

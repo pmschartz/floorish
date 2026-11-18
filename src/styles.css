@@ -218,3 +218,24 @@ kbd { font-family: ui-monospace, monospace; font-size: 11px; border: 1px solid v
 .suggestion-swatches span.yours { box-shadow: inset 0 -4px 0 #0005; }
 .suggestion-text { display: grid; gap: 1px; min-width: 0; }
 .suggestion-text strong { font-size: 12px; }
+
+/* ---- Room versions, redesign, chat ---- */
+.versions, .redesign, .room-chat { border-top: 1px solid var(--border); padding-top: 4px; display: grid; gap: 8px; }
+.versions p, .redesign p, .room-chat p { margin: 0; }
+.version-strip { display: flex; gap: 8px; overflow-x: auto; padding-bottom: 4px; }
+.version { flex: 0 0 96px; display: grid; gap: 2px; padding: 4px; text-align: left; border-radius: 8px; }
+.version.on { border-color: var(--accent); box-shadow: 0 0 0 1px var(--accent); }
+.version input { font-size: 11px; padding: 2px 4px; }
+.thumb { width: 86px; height: 64px; display: block; background: #fff; border-radius: 4px; }
+.version-name { font-size: 12px; font-weight: 600; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.version-meta { font-size: 10px; color: var(--muted); }
+.version-actions { gap: 4px; }
+.version-actions select { font-size: 12px; padding: 2px 4px; }
+.concept { background: var(--accent-soft); border-radius: 6px; padding: 6px 8px; }
+.checks-list .indent { padding-left: 20px; }
+.chat-log { display: grid; gap: 6px; max-height: 320px; overflow-y: auto; }
+.chat-msg { padding: 7px 9px; border-radius: 10px; font-size: 13px; line-height: 1.4; }
+.chat-msg.user { background: var(--accent); color: #fff; justify-self: end; max-width: 85%; }
+.chat-msg.assistant { background: #f1f1ee; max-width: 95%; }
+.chat-changes { margin-top: 4px !important; color: var(--accent); }
+.chat-input { display: grid; grid-template-columns: 1fr auto; gap: 6px; align-items: end; }

@@ -9,19 +9,6 @@ export type Point = z.infer<typeof PointSchema>;
 export const ROOM_TYPES = [
   "bedroom", "living", "dining", "kitchen", "bath", "office", "closet", "laundry", "hall", "entry", "garage", "other",
 ] as const;
-export const RoomSchema = z.object({
-  id: z.string(),
-  name: z.string(),
-  type: z.enum(ROOM_TYPES),
-  /** Interior outline (inside faces of the walls), inches. */
-  polygon: z.array(PointSchema),
-  /**
-   * Per edge (polygon[i] → polygon[i+1]): wall thickness in inches, or null where the
-   * room is open to the next space. Missing for rooms traced by hand.
-   */
-  walls: z.array(z.number().nullable()).optional(),
-});
-export type Room = z.infer<typeof RoomSchema>;
 export type RoomType = (typeof ROOM_TYPES)[number];
 
 export const ITEM_STATUSES = ["existing", "planned", "to-buy"] as const;
@@ -79,6 +66,37 @@ export const ItemSchema = z.object({
   shopResults: ShopResultsSchema.nullable(),
 });
 export type Item = z.infer<typeof ItemSchema>;
+
+/**
+ * One way of furnishing a room ("Current", "Mid-century", "Desk on the wall"). The active
+ * version's furniture lives in plan.items like any other furniture; inactive versions keep
+ * their furniture here until you switch to them.
+ */
+export const RoomVersionSchema = z.object({
+  id: z.string(),
+  name: z.string(),
+  createdAt: z.string(),
+  brief: z.string(), // what was asked for, or how it came about
+  concept: z.string(), // short description of the idea
+  items: z.array(ItemSchema),
+});
+export type RoomVersion = z.infer<typeof RoomVersionSchema>;
+
+export const RoomSchema = z.object({
+  id: z.string(),
+  name: z.string(),
+  type: z.enum(ROOM_TYPES),
+  /** Interior outline (inside faces of the walls), inches. */
+  polygon: z.array(PointSchema),
+  /**
+   * Per edge (polygon[i] → polygon[i+1]): wall thickness in inches, or null where the
+   * room is open to the next space. Missing for rooms traced by hand.
+   */
+  walls: z.array(z.number().nullable()).optional(),
+  versions: z.array(RoomVersionSchema).optional(),
+  activeVersionId: z.string().nullable().optional(),
+});
+export type Room = z.infer<typeof RoomSchema>;
 
 export const STYLE_OPTIONS = [
   "Mid-century modern",
@@ -232,3 +250,92 @@ export const DetectRequestSchema = z.object({
   height: z.number().int().positive(),
 });
 export type DetectRequest = z.infer<typeof DetectRequestSchema>;
+
+// ---- Room redesign and chat ----
+// Coordinates are inches in the room's own frame: origin at the top-left of its bounding box,
+// x to the right, y down. Rotation is which way an item's front faces: 0 = toward the bottom
+// wall, 90 = toward the left, 180 = toward the top, 270 = toward the right.
+
+const LocalItem = z.object({
+  label: z.string(),
+  category: z.string(),
+  x: z.number(),
+  y: z.number(),
+  width: z.number(),
+  depth: z.number(),
+  rotation: z.number(),
+});
+
+export const RoomContextSchema = z.object({
+  room: z.object({
+    name: z.string(),
+    type: z.string(),
+    widthIn: z.number(),
+    depthIn: z.number(),
+    outline: z.array(PointSchema),
+    edges: z.array(z.object({ side: z.string(), from: PointSchema, to: PointSchema, wall: z.boolean() })),
+  }),
+  openings: z.array(z.object({
+    kind: z.string(), label: z.string(), side: z.string(), x: z.number(), y: z.number(), width: z.number(),
+    swingsInto: z.enum(["room", "away", "none"]),
+  })),
+  fixtures: z.array(LocalItem),
+  furniture: z.array(LocalItem.extend({ id: z.string(), status: z.string() })),
+  neighbors: z.array(z.object({ name: z.string(), type: z.string(), side: z.string() })),
+  house: z.array(z.object({ name: z.string(), type: z.string(), areaSqFt: z.number() })),
+  style: StyleProfileSchema,
+});
+export type RoomContext = z.infer<typeof RoomContextSchema>;
+
+/** A piece Claude places: from the catalog (catalogKey) or custom (catalogKey "custom"). */
+export const PlacedItemSchema = z.object({
+  catalogKey: z.string(),
+  label: z.string(),
+  category: z.string(),
+  shape: z.enum(["rect", "circle", "L", "U"]),
+  x: z.number(),
+  y: z.number(),
+  width: z.number(),
+  depth: z.number(),
+  rotation: z.number(),
+  keepId: z.string().nullable(), // id of an existing piece being reused, else null (a new piece)
+  why: z.string(),
+});
+export type PlacedItem = z.infer<typeof PlacedItemSchema>;
+
+export const RedesignRequestSchema = z.object({
+  context: RoomContextSchema,
+  brief: z.string(),
+  keepIds: z.array(z.string()),
+  principles: z.array(z.string()),
+  count: z.number().int().min(1).max(3),
+});
+export type RedesignRequest = z.infer<typeof RedesignRequestSchema>;
+
+export const RedesignResponseSchema = z.object({
+  layouts: z.array(z.object({
+    name: z.string(),
+    concept: z.string(),
+    items: z.array(PlacedItemSchema),
+  })),
+});
+export type RedesignResponse = z.infer<typeof RedesignResponseSchema>;
+
+export const RoomChatRequestSchema = z.object({
+  context: RoomContextSchema,
+  versionName: z.string(),
+  history: z.array(z.object({ role: z.enum(["user", "assistant"]), text: z.string() })),
+  message: z.string(),
+});
+export type RoomChatRequest = z.infer<typeof RoomChatRequestSchema>;
+
+export const RoomChatResponseSchema = z.object({
+  reply: z.string(),
+  /** Changes to the room's furniture. Empty when the answer is just advice. */
+  changes: z.array(z.object({
+    op: z.enum(["add", "update", "remove"]),
+    id: z.string().nullable(), // existing piece for update/remove
+    item: PlacedItemSchema.nullable(), // full new state for add/update
+  })),
+});
+export type RoomChatResponse = z.infer<typeof RoomChatResponseSchema>;
