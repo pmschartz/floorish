@@ -2,6 +2,7 @@ import { nanoid } from "nanoid";
 import { useMemo, useState } from "react";
 import type { ChatMessage, Item, Plan, Room, RoomVersion } from "../../shared/schemas";
 import { api } from "../api/client";
+import { confirmDialog } from "../ui/dialog";
 import { runLayoutChecks } from "../checks/layoutChecks";
 import { bbox, itemCorners, pointInPolygon } from "../model/geometry";
 import { applyChatChanges, buildRoomContext, placedToItems, repairLayout } from "../model/roomContext";
@@ -95,9 +96,12 @@ function VersionStrip({ room }: { room: Room }) {
             return switchVersion(p2, room.id, id);
           })}>Duplicate</button>
           {versions.length > 1 && (
-            <select value="" onChange={(e) => {
+            <select value="" onChange={async (e) => {
               const id = e.target.value;
-              if (id && confirm("Delete this version? Its furniture goes with it.")) applyPlan((p) => deleteVersion(p, room.id, id));
+              const name = versions.find((v) => v.id === id)?.name ?? "this version";
+              if (id && await confirmDialog({ title: `Delete “${name}”?`, message: "Its furniture goes with it. You can undo this.", confirmLabel: "Delete version", danger: true })) {
+                applyPlan((p) => deleteVersion(p, room.id, id));
+              }
             }} aria-label="Delete a version">
               <option value="">Delete…</option>
               {versions.filter((v) => v.id !== activeId).map((v) => <option key={v.id} value={v.id}>{v.name}</option>)}

@@ -12,6 +12,7 @@ import { ChecksPanel } from "./panels/ChecksPanel";
 import { InspectorPanel } from "./panels/InspectorPanel";
 import { LibraryPanel } from "./panels/LibraryPanel";
 import { StylePanel } from "./panels/StylePanel";
+import { confirmDialog, notify } from "./ui/dialog";
 import { SpendMeter } from "./panels/SpendMeter";
 import { DetectPanel } from "./panels/DetectPanel";
 import { useDetect } from "./detect/detectStore";
@@ -99,8 +100,18 @@ function Home() {
             <button
               className="link danger"
               onClick={async () => {
-                if (!confirm(`Delete “${p.name}”? This can't be undone.`)) return;
-                await api.deletePlan(p.id);
+                const ok = await confirmDialog({
+                  title: `Delete “${p.name}”?`,
+                  message: "Its rooms, furniture and floor plan image are deleted for good. This can't be undone.",
+                  confirmLabel: "Delete plan",
+                  danger: true,
+                });
+                if (!ok) return;
+                try {
+                  await api.deletePlan(p.id);
+                } catch (e) {
+                  setErr(e instanceof Error ? e.message : String(e));
+                }
                 load();
               }}
             >
@@ -273,7 +284,11 @@ function useUpload(setBusy: (b: boolean) => void) {
   return async (file: File) => {
     const plan = usePlan.getState().plan;
     if (!plan) return;
-    if (plan.image && !confirm("Replace the floor plan image? You'll need to calibrate again; rooms and furniture stay where they are in inches.")) return;
+    if (plan.image && !(await confirmDialog({
+      title: "Replace the floor plan image?",
+      message: "You'll need to calibrate again. Rooms and furniture stay where they are, in inches.",
+      confirmLabel: "Replace image",
+    }))) return;
     setBusy(true);
     try {
       await flushSave();
@@ -282,7 +297,7 @@ function useUpload(setBusy: (b: boolean) => void) {
       usePlan.getState().setPlan(updated);
       usePlan.getState().setTool("calibrate");
     } catch (e) {
-      alert(e instanceof Error ? e.message : String(e));
+      void notify("Couldn't upload the floor plan", e instanceof Error ? e.message : String(e));
     } finally {
       setBusy(false);
     }
