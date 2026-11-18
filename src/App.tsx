@@ -16,6 +16,8 @@ import { confirmDialog, notify } from "./ui/dialog";
 import { SpendMeter } from "./panels/SpendMeter";
 import { DetectPanel } from "./panels/DetectPanel";
 import { useDetect } from "./detect/detectStore";
+import { useShortcuts } from "./panels/Shortcuts";
+import { useGridChoice } from "./state/gridChoice";
 import { effectivePpi, flushSave, GRID_PPI, usePlan, type Tool, redo, undo } from "./state/planStore";
 
 function useHashRoute(): string | null {
@@ -149,7 +151,7 @@ function Editor() {
   const selectedItemId = usePlan((s) => s.selectedItemId);
   const selectedRoomId = usePlan((s) => s.selectedRoomId);
   const [tab, setTab] = useState<Tab>("selected");
-  const [gridChosen, setGridChosen] = useState(false);
+  const gridChosen = useGridChoice((s) => s.planId === plan.id);
   const detecting = useDetect((s) => s.status !== "idle");
 
   const issues = useMemo(
@@ -173,7 +175,7 @@ function Editor() {
         <LibraryPanel />
         <main className="canvas-area">
           <PlanCanvas issues={issues} />
-          {showUpload && <UploadOverlay onGrid={() => setGridChosen(true)} />}
+          {showUpload && <UploadOverlay onGrid={() => useGridChoice.getState().choose(plan.id)} />}
         </main>
         <aside className="panel right">
           {detecting ? (
@@ -383,6 +385,11 @@ function useGlobalShortcuts() {
       if (t?.closest?.("input, textarea, select, [contenteditable]")) return;
       const s = usePlan.getState();
       const k = e.key.toLowerCase();
+      if (e.key === "?" && !mod) {
+        e.preventDefault();
+        useShortcuts.getState().toggle();
+        return;
+      }
 
       if (mod && k === "z") {
         e.preventDefault();

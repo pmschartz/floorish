@@ -158,9 +158,6 @@ kbd { font-family: var(--font-mono); font-size: 11px; border: 1px solid var(--bo
 .segmented .status-planned { background: var(--lake-soft); }
 .segmented .status-to-buy { background: var(--honey-soft); }
 
-.steps { padding-left: 18px; margin: 0; display: grid; gap: 6px; }
-.steps li.done { color: var(--muted); text-decoration: line-through; }
-.shortcuts { padding-left: 16px; margin: 0; display: grid; gap: 4px; font-size: 12px; color: var(--muted); }
 
 /* ---- Style ---- */
 .chips { display: flex; flex-wrap: wrap; gap: 6px; }
@@ -364,3 +361,69 @@ button.icon-button { display: grid; place-items: center; width: 36px; height: 36
 button.icon-button:hover:not(:disabled) { background: var(--brick-soft); color: var(--brick); }
 .plan-list li { padding-right: 10px; }
 .plan-list a { padding: 14px 16px; }
+/* Fraunces sits lower on its line than Figtree: lift the plan name 2px so its baseline matches the toolbar buttons. */
+.toolbar .plan-name { padding: 4px 9px 8px; }
+
+/* ---- Plan tab: checklist while setting up, then a summary ---- */
+.visually-hidden { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; }
+.overview { gap: 18px; }
+.overview h3 { margin: 0; }
+.checklist { background: var(--surface); border: 1px solid var(--line); border-radius: var(--radius-md); padding: 14px; display: grid; gap: 10px; }
+.checklist-head { display: flex; justify-content: space-between; align-items: baseline; }
+.checklist-head h3 { font-family: var(--font-display); font-variation-settings: "SOFT" 100, "WONK" 0; font-size: 17px; }
+.checklist-bar { height: 4px; border-radius: var(--radius-pill); background: var(--surface-sunken); overflow: hidden; }
+.checklist-bar span { display: block; height: 100%; background: var(--moss); border-radius: inherit; transition: width 200ms cubic-bezier(.3, 1.4, .5, 1); }
+.checklist ol { list-style: none; margin: 0; padding: 0; display: grid; gap: 2px; }
+.checklist li { display: grid; grid-template-columns: 20px 1fr; gap: 10px; align-items: start; padding: 6px 4px; border-radius: var(--radius-sm); }
+.checklist li.current { background: var(--surface-raised); box-shadow: var(--shadow-sm); padding: 10px 8px; }
+.checklist .check { width: 20px; height: 20px; border-radius: 50%; border: 1.5px solid var(--line-strong); display: grid; place-items: center; margin-top: 1px; }
+.checklist li.done .check { background: var(--moss); border-color: var(--moss); color: var(--on-moss); }
+.checklist li.current .check { border-color: var(--moss); border-width: 2px; }
+.step-title { font-weight: 600; }
+.checklist li.done .step-title { color: var(--ink-muted); font-weight: 500; }
+.step-detail { display: grid; gap: 8px; margin-top: 4px; justify-items: start; }
+.step-detail p { margin: 0; color: var(--ink-muted); font-size: 13px; }
+.checklist-hide { justify-self: start; color: var(--ink-muted); }
+
+.plan-stats { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
+.plan-stats div { background: var(--surface); border: 1px solid var(--line); border-radius: var(--radius-md); padding: 10px 12px; display: grid; gap: 2px; }
+.plan-stats strong { font-family: var(--font-display); font-variation-settings: "SOFT" 100, "WONK" 0; font-size: 22px; line-height: 28px; font-weight: 600; }
+.plan-stats span { font-size: 12px; color: var(--ink-muted); font-weight: 500; }
+.plan-rooms, .plan-to-buy { display: grid; gap: 8px; }
+.section-head { display: flex; justify-content: space-between; align-items: baseline; }
+.to-buy-total { color: var(--walnut); font-weight: 600; font-variant-numeric: tabular-nums; }
+.pick-list { list-style: none; margin: 0 -6px; padding: 0; display: grid; }
+.pick-list button { width: 100%; display: grid; grid-template-columns: auto 1fr auto; align-items: center; gap: 4px 10px; border: none; background: none; text-align: left; padding: 7px 6px; font-weight: 500; }
+.plan-to-buy .pick-list button { grid-template-columns: 1fr auto; }
+.pick-list button:hover:not(:disabled) { background: var(--surface-sunken); }
+.pick-name { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.pick-meta { color: var(--ink-muted); font-size: 12px; font-weight: 400; white-space: nowrap; }
+.plan-to-buy .pick-meta { grid-column: 1; grid-row: 2; }
+.pick-price { grid-column: 2; grid-row: 1 / span 2; color: var(--walnut); font-size: 13px; font-weight: 600; font-variant-numeric: tabular-nums; }
+.mono { font-family: var(--font-mono); font-size: 0.92em; }
+.dot-blank { width: 12px; height: 12px; border-radius: 50%; border: 1px dashed var(--line-strong); }
+.pick-list .sw-dot { border-radius: 50%; }
+
+/* Keyboard shortcuts card, from the ? by the zoom controls */
+.zoom-controls { align-items: center; }
+.zoom-sep { width: 1px; height: 18px; background: var(--line); margin: 0 2px; }
+.shortcuts-anchor { position: relative; }
+.shortcuts-anchor > button { border-color: transparent; min-width: 32px; font-weight: 700; }
+.shortcuts-anchor > button.on { background: var(--surface-sunken); }
+.shortcuts-card { position: absolute; right: -2px; bottom: calc(100% + 10px); width: 300px; max-height: 70vh; overflow-y: auto; background: var(--surface-raised); border: 1px solid var(--line); border-radius: var(--radius-md); box-shadow: var(--shadow-md); padding: 14px 16px; display: grid; gap: 12px; z-index: 30; }
+.shortcuts-card h2 { font-size: 17px; }
+.shortcuts-card h3 { margin: 0 0 4px; font-size: 11px; text-transform: uppercase; letter-spacing: 0.08em; color: var(--ink-muted); font-weight: 700; }
+.shortcuts-card dl { margin: 0; display: grid; gap: 4px; }
+.shortcuts-card dl > div { display: flex; justify-content: space-between; align-items: center; gap: 12px; font-size: 13px; }
+.shortcuts-card dd { margin: 0; display: flex; gap: 3px; }
+/* The Export menu's label matches the toolbar buttons beside it. */
+.tool-group .menu summary { padding: 5px 12px; border: 1px solid transparent; border-radius: var(--radius-sm); font-weight: 600; color: var(--ink-muted); transition: background var(--ease), color var(--ease); }
+.tool-group .menu summary:hover { background: rgba(255, 252, 246, 0.6); color: var(--ink); }
+.tool-group .menu[open] summary { background: var(--surface-raised); color: var(--ink); box-shadow: var(--shadow-sm); }
+.menu-items { border-radius: var(--radius-md); }
+.menu-items button { font-weight: 500; border-radius: var(--radius-sm); }
+/* The plan name pairs with the logo: about 10px from the mark, a little more before the tools. */
+.toolbar .back { padding: 0 0 0 2px; }
+.toolbar .plan-name { margin-left: -8px; margin-right: 6px; }
+/* The house sits low in its 64-unit box; lift it so it centres on the plan name's capitals. */
+.toolbar .back img { position: relative; top: -2px; }

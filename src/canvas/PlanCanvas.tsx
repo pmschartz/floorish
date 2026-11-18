@@ -17,6 +17,7 @@ import { RoomEditHandles } from "./RoomEditHandles";
 import { moveRoomEdge } from "../model/roomEdit";
 import { useDetect } from "../detect/detectStore";
 import { PLAN } from "./theme";
+import { ShortcutsButton } from "../panels/Shortcuts";
 
 function useHtmlImage(url: string | undefined) {
   const [img, setImg] = useState<HTMLImageElement | null>(null);
@@ -441,6 +442,8 @@ export function PlanCanvas({ issues }: { issues: Issue[] }) {
         <button title="Zoom out (⌘−)" onClick={() => setView((v) => zoomAt(v, size, 1 / 1.25))}>−</button>
         <button title="Fit plan (⌘0)" onClick={fit}>Fit</button>
         <button title="Zoom in (⌘+)" onClick={() => setView((v) => zoomAt(v, size, 1.25))}>+</button>
+        <span className="zoom-sep" aria-hidden />
+        <ShortcutsButton />
       </div>
 
       {calib !== null && (

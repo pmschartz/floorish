@@ -52,6 +52,17 @@ describe("layout checks", () => {
     expect(issues.find((i) => i.id === `clearance:${bed.id}:right`)).toBeUndefined();
   });
 
+  it("measures clearance to walls, not to an open side between rooms", () => {
+    // Dining room open to the kitchen along its bottom edge (rectLocal edges: top, right, bottom, left).
+    const dining: Room = { id: "d", name: "Dining", type: "dining", polygon: rectLocal(0, 0, 120, 100), walls: [5, 5, null, 5] };
+    const kitchen: Room = { id: "k", name: "Kitchen", type: "kitchen", polygon: rectLocal(0, 100, 120, 250), walls: [null, 5, 5, 5] };
+    const table = item({ category: "dining table", x: 60, y: 76, width: 48, depth: 48 });
+    expect(runLayoutChecks([table], [dining, kitchen]).filter((i) => i.kind === "clearance")).toHaveLength(0);
+    // With a wall there, it is flagged.
+    const walled = { ...dining, walls: [5, 5, 5, 5] }, kitchenWalled = { ...kitchen, polygon: rectLocal(0, 105, 120, 250), walls: [5, 5, 5, 5] };
+    expect(runLayoutChecks([table], [walled, kitchenWalled]).some((i) => i.kind === "clearance" && /a wall/.test(i.message))).toBe(true);
+  });
+
   it("allows nightstands beside the bed but flags a dresser there", () => {
     const bed = item({ category: "bed", catalogKey: "bed-queen", x: 72, y: 40, width: 60, depth: 80 });
     const ns = item({ category: "nightstand", x: 30, y: 8, width: 24, depth: 16 });
