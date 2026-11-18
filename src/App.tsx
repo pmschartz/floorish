@@ -348,10 +348,23 @@ function UploadOverlay({ onGrid }: { onGrid: () => void }) {
 function useGlobalShortcuts() {
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
+      const mod = e.metaKey || e.ctrlKey;
+      // ⌘+ / ⌘− / ⌘0 zoom the plan instead of the whole window (even while typing in a field).
+      // Matched on the physical key too, since ⌘+ is really ⌘= on most keyboards.
+      if (mod && !e.altKey && canvasApi.stage) {
+        const zoomIn = e.key === "=" || e.key === "+" || e.code === "Equal" || e.code === "NumpadAdd";
+        const zoomOut = e.key === "-" || e.key === "_" || e.code === "Minus" || e.code === "NumpadSubtract";
+        const reset = e.key === "0" || e.code === "Digit0" || e.code === "Numpad0";
+        if (zoomIn || zoomOut || reset) {
+          e.preventDefault();
+          if (reset) canvasApi.fit();
+          else canvasApi.zoom(zoomIn ? 1.25 : 1 / 1.25);
+          return;
+        }
+      }
       const t = e.target as HTMLElement;
       if (t?.closest?.("input, textarea, select, [contenteditable]")) return;
       const s = usePlan.getState();
-      const mod = e.metaKey || e.ctrlKey;
       const k = e.key.toLowerCase();
 
       if (mod && k === "z") {

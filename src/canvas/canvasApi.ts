@@ -6,11 +6,14 @@ export const canvasApi: {
   stage: Konva.Stage | null;
   centerInches: () => Point | null;
   fit: () => void;
+  /** Zoom around the middle of the view by this factor (>1 zooms in). */
+  zoom: (factor: number) => void;
   focusItem: (id: string) => void;
 } = {
   stage: null,
   centerInches: () => null,
   fit: () => {},
+  zoom: () => {},
   focusItem: () => {},
 };
 

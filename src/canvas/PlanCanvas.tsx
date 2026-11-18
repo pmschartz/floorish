@@ -98,10 +98,14 @@ export function PlanCanvas({ issues }: { issues: Issue[] }) {
     setHover(null);
   }, [tool]);
 
+  // Forget the stage when leaving the plan, so shortcuts like ⌘+ go back to the browser.
+  useEffect(() => () => { canvasApi.stage = null; }, []);
+
   // Expose helpers for panels.
   useEffect(() => {
     canvasApi.stage = stageRef.current;
     canvasApi.fit = fit;
+    canvasApi.zoom = (f) => setView((v) => zoomAt(v, size, f));
     canvasApi.centerInches = () => {
       if (!ppi) return null;
       return { x: (size.w / 2 - view.x) / view.scale / ppi, y: (size.h / 2 - view.y) / view.scale / ppi };
@@ -422,9 +426,9 @@ export function PlanCanvas({ issues }: { issues: Issue[] }) {
       <ToolHint tool={tool} draftLen={draft.length} calibrated={!!ppi} hasImage={!!plan.image} />
 
       <div className="zoom-controls">
-        <button title="Zoom out" onClick={() => setView((v) => zoomAt(v, size, 1 / 1.25))}>−</button>
-        <button title="Fit plan" onClick={fit}>Fit</button>
-        <button title="Zoom in" onClick={() => setView((v) => zoomAt(v, size, 1.25))}>+</button>
+        <button title="Zoom out (⌘−)" onClick={() => setView((v) => zoomAt(v, size, 1 / 1.25))}>−</button>
+        <button title="Fit plan (⌘0)" onClick={fit}>Fit</button>
+        <button title="Zoom in (⌘+)" onClick={() => setView((v) => zoomAt(v, size, 1.25))}>+</button>
       </div>
 
       {calib !== null && (

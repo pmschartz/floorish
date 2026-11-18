@@ -183,7 +183,7 @@ function PlanOverview() {
       <h3>Shortcuts</h3>
       <ul className="shortcuts">
         <li><kbd>V</kbd> select · <kbd>H</kbd> pan · <kbd>C</kbd> calibrate · <kbd>R</kbd> room · <kbd>B</kbd> rectangle room</li>
-        <li><kbd>Space</kbd>+drag pans · scroll or pinch zooms</li>
+        <li><kbd>Space</kbd>+drag pans · scroll or pinch zooms · <kbd>⌘+</kbd> <kbd>⌘−</kbd> zoom · <kbd>⌘0</kbd> fit</li>
         <li><kbd>⌫</kbd> delete · <kbd>⌘D</kbd> duplicate · arrows nudge 1" (<kbd>Shift</kbd> 6")</li>
         <li><kbd>⌘Z</kbd> undo · <kbd>⇧⌘Z</kbd> redo · <kbd>Alt</kbd> while dragging turns off snapping</li>
       </ul>
