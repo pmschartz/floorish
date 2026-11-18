@@ -5,6 +5,7 @@ import { formatArea, formatLength } from "../model/units";
 import { effectivePpi, usePlan } from "../state/planStore";
 import { LengthInput } from "./LengthInput";
 import { RemeasureWalls } from "./RemeasureWalls";
+import { RoomWalls } from "./RoomWalls";
 import { mergeCandidates, mergeRooms } from "../model/roomEdit";
 import { confirmDialog, notify } from "../ui/dialog";
 import { RoomDesignPanel } from "./RoomDesignPanel";
@@ -157,6 +158,7 @@ function RoomInspector({ room }: { room: Room }) {
         {room.polygon.length !== 4 && <span className="muted"> (outer size)</span>}
       </p>
       <p className="muted small">Drag the handles on the room's walls to move them; they snap to other rooms' walls.</p>
+      <RoomWalls room={room} />
       <MergeRoom room={room} />
       <RoomPaintPanel room={room} />
       <button className="danger" onClick={() => removeRoom(room.id)}>Delete room</button>

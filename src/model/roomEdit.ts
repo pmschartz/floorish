@@ -1,12 +1,15 @@
 import type { Plan, Point, Room } from "../../shared/schemas";
-import { connectWalls, fitOpeningsToWalls, MAX_WALL_IN, roomEdges, simplifyOutline } from "../detect/walls";
+import { fitOpeningsToWalls, MAX_WALL_IN, roomEdges, simplifyOutline, standardizeWalls, wallStandard } from "../detect/walls";
 import { pointInPolygon } from "./geometry";
 
-/** After changing room outlines: walls between rooms re-join, doors and windows re-centre. */
-function rejoin(plan: Plan, rooms: Room[]): Plan {
-  const connected = connectWalls(rooms, plan.wallThickness);
-  const joined = rooms.map((r, i) => ({ ...r, walls: connected.walls[i] }));
-  return { ...plan, rooms: joined, items: fitOpeningsToWalls(plan.items, joined, connected.walls) };
+/**
+ * After changing room outlines: every wall goes back to the plan's standard inside or outside
+ * thickness (rooms either side of a wall keep it exactly that thick), and doors and windows
+ * re-centre. `pinned` edges ("room index:edge") stay exactly where they are.
+ */
+function rejoin(plan: Plan, rooms: Room[], pinned?: Set<string>): Plan {
+  const { rooms: joined } = standardizeWalls(rooms, wallStandard(plan.rooms), pinned);
+  return { ...plan, rooms: joined, items: fitOpeningsToWalls(plan.items, joined, joined.map((r) => r.walls ?? [])) };
 }
 
 /** Move one straight wall of a room in or out, to `coord` (inches: y for a horizontal wall, x for a vertical one). */
@@ -20,9 +23,11 @@ export function moveRoomEdge(plan: Plan, roomId: string, edge: number, coord: nu
       if (i !== edge && i !== (edge + 1) % n) return p;
       return e.axis === "h" ? { x: p.x, y: coord } : { x: coord, y: p.y };
     });
-    return { ...r, ...simplifyOutline(polygon, r.walls) };
+    return { ...r, polygon };
   });
-  return rejoin(plan, rooms);
+  // The wall you dragged stays put; a room on the other side moves to keep the wall standard.
+  const ri = plan.rooms.findIndex((r) => r.id === roomId);
+  return rejoin(plan, rooms, new Set([`${ri}:${edge}`]));
 }
 
 /** Rooms that can be merged with this one: touching it, or across a wall from it. */
@@ -133,5 +138,45 @@ export function mergeRooms(plan: Plan, roomId: string, otherId: string): Plan | 
   });
   const merged: Room = { ...a, polygon, walls, suggestions: undefined };
   const rooms = plan.rooms.filter((r) => r.id !== b.id).map((r) => (r.id === a.id ? merged : r));
+  return rejoin(plan, rooms);
+}
+
+/**
+ * Put a wall on one edge of a room, or take it away (open to the next room). The room on the
+ * other side gets the same; rooms move apart to make room for a new wall, or together when one
+ * is taken away.
+ */
+export function setEdgeWall(plan: Plan, roomId: string, edge: number, wall: boolean): Plan {
+  const ri = plan.rooms.findIndex((r) => r.id === roomId);
+  if (ri < 0) return plan;
+  const edges = roomEdges(plan.rooms);
+  const e = edges.find((x) => x.room === ri && x.edge === edge);
+  if (!e) return plan;
+  const std = wallStandard(plan.rooms);
+  // The edges across from this one (touching, or across a wall).
+  const across = edges.filter((f) => f.room !== ri && f.axis === e.axis && f.inward === -e.inward &&
+    (f.coord - e.coord) * -e.inward > -0.5 && (f.coord - e.coord) * -e.inward <= MAX_WALL_IN &&
+    Math.min(e.span[1], f.span[1]) - Math.max(e.span[0], f.span[0]) >= 6);
+  const set = new Map<string, number | null>([[`${ri}:${edge}`, wall ? std.interior : null]]);
+  for (const f of across) set.set(`${f.room}:${f.edge}`, wall ? std.interior : null);
+  let rooms = plan.rooms.map((r, i) => ({
+    ...r,
+    walls: r.polygon.map((_, k) => (set.has(`${i}:${k}`) ? set.get(`${i}:${k}`)! : r.walls ? r.walls[k] : std.interior)),
+  }));
+  if (!wall) {
+    // Taking a wall away: close the gap so the rooms meet in the middle of where it was.
+    const mids = across.map((f) => (e.coord + f.coord) / 2);
+    const mid = mids.length ? mids.reduce((a, b) => a + b, 0) / mids.length : e.coord;
+    rooms = rooms.map((r, i) => {
+      const moves = [{ room: ri, edge }, ...across.map((f) => ({ room: f.room, edge: f.edge }))].filter((m) => m.room === i);
+      if (!moves.length) return r;
+      const poly = r.polygon.map((p) => ({ ...p }));
+      for (const m of moves) {
+        const p = poly[m.edge], q = poly[(m.edge + 1) % poly.length];
+        if (e.axis === "h") { p.y = mid; q.y = mid; } else { p.x = mid; q.x = mid; }
+      }
+      return { ...r, polygon: poly };
+    });
+  }
   return rejoin(plan, rooms);
 }

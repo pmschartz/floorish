@@ -1,5 +1,5 @@
 import type { Item, Point, RawDetection, Room } from "../../shared/schemas";
-import { alignWalls, connectWalls, fitOpeningsToWalls } from "./walls";
+import { alignWalls, connectWalls, fitOpeningsToWalls, standardizeWalls } from "./walls";
 import { FIXTURE_LABEL } from "../catalog/furniture";
 import { bbox, pointInPolygon, toWorld } from "../model/geometry";
 import {
@@ -358,10 +358,12 @@ export function buildProposal(raw: RawDetection, factor: number, mask: Mask, pla
   }));
   // Walls meant to be one straight line get lined up; walls between rooms fill the gap between
   // them, so neighbouring rooms share one wall.
-  const aligned = alignWalls(snappedRooms);
-  const connected = connectWalls(aligned, measuredWall);
-  const rooms: NewRoom[] = aligned.map((r, i) => ({ ...r, walls: connected.walls[i] }));
-  const wallThickness = connected.typical;
+  // Then every wall becomes one of two standard thicknesses, so the plan looks consistent
+  // however the upload was drawn.
+  const connected = connectWalls(alignWalls(snappedRooms), measuredWall);
+  const std = standardizeWalls(alignWalls(snappedRooms).map((r, i) => ({ ...r, walls: connected.walls[i] })));
+  const rooms: NewRoom[] = std.rooms;
+  const wallThickness = std.standard.interior;
 
   const openings: NewItem[] = [];
   for (const o of ops) {
@@ -465,7 +467,7 @@ export function buildProposal(raw: RawDetection, factor: number, mask: Mask, pla
   }
 
   return {
-    ppi, ppiSource, scaleDisagreement, wallThickness, rooms, openings: fitOpeningsToWalls(openings, rooms, connected.walls), fixtures,
+    ppi, ppiSource, scaleDisagreement, wallThickness, rooms, openings: fitOpeningsToWalls(openings, rooms, rooms.map((r) => r.walls ?? [])), fixtures,
     notes: raw.notes, correctedDoors: corrected, addedDoors: added, addedWindows, orphanDoorsNear,
   };
 }

@@ -224,3 +224,111 @@ export function simplifyOutline(polygon: Point[], walls?: (number | null)[]): { 
   }
   return { polygon: pts.map((x) => x.p), walls: walls ? pts.map((x) => x.w as number | null) : undefined };
 }
+
+/** Standard wall thicknesses (inches) a plan is drawn with, whatever the uploaded image looked like. */
+export interface WallStandard { interior: number; exterior: number }
+
+const roundHalf = (n: number) => Math.round(n * 2) / 2;
+const clampTo = (n: number, lo: number, hi: number) => Math.max(lo, Math.min(hi, n));
+
+interface Facing { f: RoomEdge; gap: number; len: number }
+
+function facingEdges(e: RoomEdge, all: RoomEdge[]): Facing[] {
+  const out: Facing[] = [];
+  for (const f of all) {
+    if (f.room === e.room || f.axis !== e.axis || f.inward !== -e.inward) continue;
+    const gap = (f.coord - e.coord) * -e.inward;
+    const len = overlap(e.span, f.span);
+    if (gap > -0.5 && gap <= MAX_WALL_IN && len >= 6) out.push({ f, gap: Math.max(0, gap), len });
+  }
+  return out;
+}
+
+const weightedMedian = (xs: Array<{ v: number; w: number }>) => {
+  const s = [...xs].sort((a, b) => a.v - b.v);
+  const total = s.reduce((t, x) => t + x.w, 0);
+  let acc = 0;
+  for (const x of s) if ((acc += x.w) >= total / 2) return x.v;
+  return s[s.length - 1]?.v ?? 0;
+};
+
+/** The plan's standard inside and outside walls, from what it has now (or sensible defaults). */
+export function wallStandard(rooms: Pick<Room, "polygon" | "walls">[]): WallStandard {
+  const edges = roomEdges(rooms);
+  const inside: Array<{ v: number; w: number }> = [], outside: Array<{ v: number; w: number }> = [];
+  for (const e of edges) {
+    const t = rooms[e.room].walls?.[e.edge];
+    if (t == null) continue;
+    const facing = facingEdges(e, edges);
+    const len = e.span[1] - e.span[0];
+    if (facing.length) {
+      for (const x of facing) if (x.gap >= 2.5) inside.push({ v: x.gap, w: x.len });
+    } else if (t >= 3) {
+      outside.push({ v: t, w: len });
+    }
+  }
+  const interior = inside.length ? clampTo(roundHalf(weightedMedian(inside)), 3.5, 6) : 4.5;
+  const exterior = outside.length ? clampTo(roundHalf(weightedMedian(outside)), Math.max(interior, 5), 10) : Math.max(6, interior + 1.5);
+  return { interior, exterior };
+}
+
+/**
+ * Make every wall one of two standard thicknesses, so plans look consistent however the upload
+ * was drawn: walls between rooms are exactly the inside thickness (rooms on either side move
+ * apart or together to make it so, about the middle of the wall), outside walls are the outside
+ * thickness, and edges open to another room stay open. A wall on either side of a shared edge
+ * means there's a wall. `pinned` edges ("room:edge") don't move; their neighbours move instead.
+ */
+export function standardizeWalls<R extends Pick<Room, "polygon" | "walls">>(
+  rooms: R[],
+  standard: WallStandard = wallStandard(rooms),
+  pinned: Set<string> = new Set(),
+): { rooms: R[]; standard: WallStandard } {
+  const { interior, exterior } = standard;
+  const edges = roomEdges(rooms);
+  const key = (e: RoomEdge) => `${e.room}:${e.edge}`;
+  const wallOf = (e: RoomEdge) => rooms[e.room].walls?.[e.edge];
+  const target = new Map<string, number>(); // new face coord
+  const thick = new Map<string, number | null>();
+
+  for (const e of edges) {
+    const facing = facingEdges(e, edges);
+    const mine = wallOf(e);
+    if (!facing.length) {
+      // Nothing on the other side: an outside wall (even if it had been marked open).
+      thick.set(key(e), exterior);
+      continue;
+    }
+    const walled = mine !== null || facing.some((x) => wallOf(x.f) !== null);
+    if (!walled) { thick.set(key(e), null); continue; }
+    thick.set(key(e), interior);
+    if (pinned.has(key(e))) continue;
+    // Where this face goes: half the wall from the wall's middle, or a whole wall from a pinned neighbour.
+    const pin = facing.find((x) => pinned.has(key(x.f)));
+    if (pin) {
+      target.set(key(e), pin.f.coord + e.inward * interior);
+    } else {
+      const middle = weightedMedian(facing.map((x) => ({ v: (e.coord + x.f.coord) / 2, w: x.len })));
+      target.set(key(e), middle + e.inward * (interior / 2));
+    }
+  }
+
+  const out = rooms.map((r, ri) => {
+    const n = r.polygon.length;
+    const poly = r.polygon.map((p) => ({ ...p }));
+    const walls = r.polygon.map((_, i) => {
+      const e = edges.find((x) => x.room === ri && x.edge === i);
+      if (!e) return r.walls?.[i] ?? interior; // angled edge: leave as it was
+      const t = thick.get(key(e));
+      return t === undefined ? (r.walls?.[i] ?? interior) : t;
+    });
+    for (const e of edges) {
+      if (e.room !== ri || !target.has(key(e))) continue;
+      const c = target.get(key(e))!;
+      const p = poly[e.edge], q = poly[(e.edge + 1) % n];
+      if (e.axis === "h") { p.y = c; q.y = c; } else { p.x = c; q.x = c; }
+    }
+    return { ...r, ...simplifyOutline(poly, walls) };
+  });
+  return { rooms: out, standard };
+}

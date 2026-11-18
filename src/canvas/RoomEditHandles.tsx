@@ -3,6 +3,7 @@ import { useState } from "react";
 import { Group, Line, Rect } from "react-konva";
 import type { Point, Room } from "../../shared/schemas";
 import { roomEdges } from "../detect/walls";
+import { useWallHover } from "../panels/RoomWalls";
 
 /** Within this many inches, a dragged wall snaps to another room's wall line. */
 const SNAP_IN = 4;
@@ -20,6 +21,7 @@ export function RoomEditHandles({ room, rooms, ppi, stageScale, onMoveEdge }: {
   onMoveEdge: (edge: number, coord: number) => void;
 }) {
   const [drag, setDrag] = useState<{ edge: number; coord: number } | null>(null);
+  const hover = useWallHover((h) => (h.roomId === room.id ? h.edge : null));
   const s = stageScale;
   const index = rooms.findIndex((r) => r.id === room.id);
   const mine = roomEdges([room]);
@@ -53,6 +55,11 @@ export function RoomEditHandles({ room, rooms, ppi, stageScale, onMoveEdge }: {
   if (index < 0) return null;
   return (
     <Group>
+      {hover != null && hover < room.polygon.length && (
+        // The wall hovered in the room panel's list.
+        <Line points={[room.polygon[hover].x * ppi, room.polygon[hover].y * ppi, room.polygon[(hover + 1) % room.polygon.length].x * ppi, room.polygon[(hover + 1) % room.polygon.length].y * ppi]}
+          stroke="#f59e0b" strokeWidth={5 / s} lineCap="round" listening={false} />
+      )}
       {preview && (
         <Line points={preview.flatMap((p) => [p.x * ppi, p.y * ppi])} closed stroke="#2f6f5e"
           strokeWidth={2 / s} dash={[6 / s, 4 / s]} listening={false} />

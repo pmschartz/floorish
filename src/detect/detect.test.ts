@@ -105,15 +105,16 @@ describe("buildProposal", () => {
     const p = buildProposal(raw, 2, plan(), null);
     expect(p.ppiSource).toBe("printed");
     expect(p.ppi).toBeCloseTo(2, 5); // 150px / 75", 100px / 50"
-    expect(p.wallThickness).toBe(3);
-    expect(p.rooms[0].polygon).toEqual([{ x: 25, y: 25 }, { x: 100, y: 25 }, { x: 100, y: 75 }, { x: 25, y: 75 }]);
-    expect(p.rooms[1].polygon[0]).toEqual({ x: 103, y: 25 });
+    expect(p.wallThickness).toBe(3.5); // measured 3", raised to the smallest standard inside wall
+    // The 3" wall between the rooms becomes the standard 3.5": each room gives a quarter inch.
+    expect(p.rooms[0].polygon).toEqual([{ x: 25, y: 25 }, { x: 99.75, y: 25 }, { x: 99.75, y: 75 }, { x: 25, y: 75 }]);
+    expect(p.rooms[1].polygon[0]).toEqual({ x: 103.25, y: 25 });
 
     const door = p.openings.find((i) => i.shape === "door")!;
     // Hinge at the top, swinging right (into the office): front faces +x, hinge on the flipped end.
-    expect(door).toMatchObject({ x: 101.5, y: 47.75, width: 15.5, depth: 3, rotation: 270, flip: true });
+    expect(door).toMatchObject({ x: 101.5, y: 47.75, width: 15.5, depth: 3.5, rotation: 270, flip: true });
     const win = p.openings.find((i) => i.shape === "window")!;
-    expect(win).toMatchObject({ x: 60.25, y: 23.5, width: 20.5, rotation: 0 });
+    expect(win).toMatchObject({ x: 60.25, y: 22.5, width: 20.5, rotation: 0 }); // centred in the standard 5" outside wall
   });
 
   it("uses the plan's own scale when it has one and reports disagreement", () => {
@@ -140,8 +141,9 @@ describe("walls that are mostly doorway", () => {
       notes: "",
     };
     const p = buildProposal(raw, 2, plan(), 2);
-    // Left edge (index 3) runs along the shared wall at x 200–205 → interior face x=206px = 103".
-    expect(p.rooms[0].walls![3]).toBe(3);
+    // Left edge (index 3) runs along the wall at x 200–205 → interior face x=206px = 103". It has
+    // a door in it, so it is a wall (the standard outside wall, as nothing is traced beyond it).
+    expect(p.rooms[0].walls![3]).toBeGreaterThan(0);
     expect(p.rooms[0].polygon[0].x).toBe(103);
   });
 });

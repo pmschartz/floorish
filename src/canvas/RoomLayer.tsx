@@ -60,27 +60,49 @@ const TYPE_FILL: Record<Room["type"], string> = {
   other: "#f0ece6",
 };
 
-/** Wall strokes for a room in inches: each edge pushed outward by half its wall's thickness. */
-export function roomWalls(room: Room, defaultThickness: number): Array<{ pts: number[]; t: number }> {
+/**
+ * A room's walls as filled shapes (inches): a band along the outside of each walled edge, with
+ * flat ends, plus a corner block where two walls meet at an outside corner. Nothing pokes past a
+ * corner or into an open doorway, whatever the thicknesses.
+ */
+export function roomWalls(room: Room, defaultThickness: number): number[][] {
   const poly = room.polygon;
+  const n = poly.length;
   let area = 0;
-  for (let i = 0; i < poly.length; i++) {
-    const p = poly[i], q = poly[(i + 1) % poly.length];
+  for (let i = 0; i < n; i++) {
+    const p = poly[i], q = poly[(i + 1) % n];
     area += p.x * q.y - q.x * p.y;
   }
   const cw = area >= 0 ? 1 : -1;
-  const out: Array<{ pts: number[]; t: number }> = [];
-  poly.forEach((p, i) => {
+  const thick = (i: number) => {
     const t = room.walls ? room.walls[i] : defaultThickness;
-    if (t == null || t <= 0) return; // open to the next space
-    const q = poly[(i + 1) % poly.length];
-    const len = Math.hypot(q.x - p.x, q.y - p.y);
-    if (len < 0.01) return;
-    // Inward normal of a clockwise (on screen) polygon is (−dy, dx); walls sit on the other side.
-    const nx = (-cw * -(q.y - p.y)) / len, ny = (-cw * (q.x - p.x)) / len;
-    const ox = nx * t / 2, oy = ny * t / 2;
-    out.push({ pts: [p.x + ox, p.y + oy, q.x + ox, q.y + oy], t });
-  });
+    return t == null || t <= 0 ? 0 : t;
+  };
+  // Outward normal of edge i (away from the room), unit length.
+  const normal = (i: number) => {
+    const p = poly[i], q = poly[(i + 1) % n];
+    const len = Math.hypot(q.x - p.x, q.y - p.y) || 1;
+    return { x: (cw * (q.y - p.y)) / len, y: (-cw * (q.x - p.x)) / len };
+  };
+  const out: number[][] = [];
+  for (let i = 0; i < n; i++) {
+    const t = thick(i);
+    const p = poly[i], q = poly[(i + 1) % n];
+    if (!t || Math.hypot(q.x - p.x, q.y - p.y) < 0.01) continue;
+    const m = normal(i);
+    out.push([p.x, p.y, q.x, q.y, q.x + m.x * t, q.y + m.y * t, p.x + m.x * t, p.y + m.y * t]);
+  }
+  // Outside corners: fill the square between the two walls' ends.
+  for (let i = 0; i < n; i++) {
+    const prev = (i - 1 + n) % n;
+    const t1 = thick(prev), t2 = thick(i);
+    if (!t1 || !t2) continue;
+    const a = poly[prev], v = poly[i], c = poly[(i + 1) % n];
+    const turn = (v.x - a.x) * (c.y - v.y) - (v.y - a.y) * (c.x - v.x);
+    if (turn * cw <= 0) continue; // inside (reflex) corner: the bands already overlap there
+    const m1 = normal(prev), m2 = normal(i);
+    out.push([v.x, v.y, v.x + m1.x * t1, v.y + m1.y * t1, v.x + m1.x * t1 + m2.x * t2, v.y + m1.y * t1 + m2.y * t2, v.x + m2.x * t2, v.y + m2.y * t2]);
+  }
   return out;
 }
 
@@ -108,9 +130,8 @@ export function CleanRoomLayer({ rooms, ppi, stageScale, units, selectedRoomId, 
         );
       })}
       {rooms.flatMap((room) =>
-        roomWalls(room, wallThickness).map((w, i) => (
-          <Line key={`wall-${room.id}-${i}`} points={w.pts.map((v) => v * ppi)} stroke="#2b2b2b"
-            strokeWidth={w.t * ppi} lineCap="square" listening={false} />
+        roomWalls(room, wallThickness).map((pts, i) => (
+          <Line key={`wall-${room.id}-${i}`} points={pts.map((v) => v * ppi)} closed fill="#2b2b2b" listening={false} />
         )),
       )}
     </>
