@@ -4,6 +4,7 @@ import type { FitLabel, Item } from "../../shared/schemas";
 import { api } from "../api/client";
 import { roomFor } from "../checks/layoutChecks";
 import { formatDims, formatLength } from "../model/units";
+import { reusableShopResults } from "../model/shopReuse";
 import { usePlan, keepResult } from "../state/planStore";
 import { describePaint } from "../../shared/sw";
 
@@ -62,11 +63,25 @@ export function ShopPanel({ item }: { item: Item }) {
 
   const what = item.label || item.category;
   const res = item.shopResults;
-  const stale = res && (Math.abs(res.query.width - item.width) > 0.5 || Math.abs(res.query.depth - item.depth) > 0.5);
+  // Searched for a different size (either way round, since a turned piece swaps width and depth)?
+  const near = (a: number, b: number) => Math.abs(a - b) <= 0.5;
+  const stale = !!res && !(
+    (near(res.query.width, item.width) && near(res.query.depth, item.depth)) ||
+    (near(res.query.width, item.depth) && near(res.query.depth, item.width))
+  );
   const products = res ? (showAll ? res.products : res.products.filter((p) => p.fit !== "too-big")) : [];
   const hidden = res ? res.products.length - products.length : 0;
 
   const go = () => runSearch(item, { under, over, maxPrice: Number(maxPrice) > 0 ? Number(maxPrice) : null });
+
+  // Another piece of the same kind and size (e.g. the other nightstand) may already have results.
+  const items = usePlan((s) => s.plan?.items ?? []);
+  const source = !running && (!res || stale) ? reusableShopResults(item, items) : null;
+  const reuse = () => {
+    if (!source?.shopResults) return;
+    const copy = source.shopResults;
+    keepResult((p) => ({ ...p, items: p.items.map((i) => (i.id === item.id ? { ...i, shopResults: copy } : i)) }));
+  };
 
   return (
     <section className="shop">
@@ -90,8 +105,17 @@ export function ShopPanel({ item }: { item: Item }) {
             </label>
           </div>
           <p className="muted small">Tolerances are in inches.</p>
-          <button className="primary wide" onClick={go} disabled={running}>
-            {running ? "Searching the web…" : res ? `Search again (${formatDims(item.width, item.depth, units)})` : `Find a ${what.toLowerCase()} that fits ${formatDims(item.width, item.depth, units)}`}
+          {source && (
+            <div className="notice reuse-offer">
+              <p className="small">
+                <strong>{source.label || source.category}</strong> is the same kind and size and already has results from{" "}
+                {new Date(source.shopResults!.searchedAt).toLocaleDateString(undefined, { month: "short", day: "numeric" })}.
+              </p>
+              <button className="primary" onClick={reuse}>Use those results (free)</button>
+            </div>
+          )}
+          <button className={source ? "wide" : "primary wide"} onClick={go} disabled={running}>
+            {running ? "Searching the web…" : source ? `Search anyway (${formatDims(item.width, item.depth, units)})` : res ? `Search again (${formatDims(item.width, item.depth, units)})` : `Find a ${what.toLowerCase()} that fits ${formatDims(item.width, item.depth, units)}`}
           </button>
           {running && <p className="muted small">Claude is searching retailers. This usually takes 30–90 seconds and costs a few cents.</p>}
           {error && <p className="error-text">{error}</p>}

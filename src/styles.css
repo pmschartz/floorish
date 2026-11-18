@@ -292,3 +292,6 @@ kbd { font-family: ui-monospace, monospace; font-size: 11px; border: 1px solid v
 .dialog-actions { display: flex; justify-content: flex-end; gap: 8px; margin-top: 6px; }
 button.danger-solid { background: var(--danger); border-color: var(--danger); color: #fff; }
 button.danger-solid:hover:not(:disabled) { background: #a3360a; }
+
+.reuse-offer { display: grid; gap: 6px; margin: 6px 0; }
+.reuse-offer p { margin: 0; }
