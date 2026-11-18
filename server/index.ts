@@ -117,4 +117,4 @@ app.use((err: unknown, _req: Request, res: Response, _next: NextFunction) => {
 });
 
 await store.ensureDirs();
-app.listen(PORT, () => console.log(`House Planner API on http://localhost:${PORT}`));
+app.listen(PORT, () => console.log(`Floorish API on http://localhost:${PORT}`));

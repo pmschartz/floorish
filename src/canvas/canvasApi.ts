@@ -17,4 +17,4 @@ export const canvasApi: {
   focusItem: () => {},
 };
 
-export const DRAG_MIME = "application/x-house-planner-entry";
+export const DRAG_MIME = "application/x-floorish-entry";
