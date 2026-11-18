@@ -77,10 +77,23 @@ export const CATALOG: CatalogEntry[] = [
   { key: "rug-9x12", label: "Rug 9×12", category: "rug", group: "Rugs", shape: "rect", width: 108, depth: 144, height: null },
   { key: "rug-round", label: "Round rug 6'", category: "rug", group: "Rugs", shape: "circle", width: 72, depth: 72, height: null },
 
-  // Openings
+  // Doors, windows and openings (they snap into the nearest wall)
+  { key: "door-24", label: "Door 24\"", category: "door", group: "Doors & windows", shape: "door", width: 24, depth: 2, height: null },
   { key: "door-30", label: "Door 30\"", category: "door", group: "Doors & windows", shape: "door", width: 30, depth: 2, height: null },
+  { key: "door-32", label: "Door 32\"", category: "door", group: "Doors & windows", shape: "door", width: 32, depth: 2, height: null },
   { key: "door-36", label: "Door 36\"", category: "door", group: "Doors & windows", shape: "door", width: 36, depth: 2, height: null },
-  { key: "window", label: "Window", category: "window", group: "Doors & windows", shape: "window", width: 36, depth: 4, height: null },
+  { key: "double-door-60", label: "Double door 60\"", category: "double door", group: "Doors & windows", shape: "door", width: 60, depth: 2, height: null },
+  { key: "sliding-door-60", label: "Sliding door 60\"", category: "sliding door", group: "Doors & windows", shape: "opening", width: 60, depth: 4, height: null },
+  { key: "sliding-door-72", label: "Sliding door 72\"", category: "sliding door", group: "Doors & windows", shape: "opening", width: 72, depth: 4, height: null },
+  { key: "pocket-door-30", label: "Pocket door 30\"", category: "pocket door", group: "Doors & windows", shape: "opening", width: 30, depth: 4, height: null },
+  { key: "bifold-door-36", label: "Bifold door 36\"", category: "bifold door", group: "Doors & windows", shape: "opening", width: 36, depth: 4, height: null },
+  { key: "bifold-door-48", label: "Bifold door 48\"", category: "bifold door", group: "Doors & windows", shape: "opening", width: 48, depth: 4, height: null },
+  { key: "opening-36", label: "Opening 36\"", category: "opening", group: "Doors & windows", shape: "opening", width: 36, depth: 4, height: null },
+  { key: "opening-72", label: "Wide opening 72\"", category: "opening", group: "Doors & windows", shape: "opening", width: 72, depth: 4, height: null },
+  { key: "garage-door-96", label: "Garage door 8'", category: "garage door", group: "Doors & windows", shape: "opening", width: 96, depth: 6, height: null },
+  { key: "garage-door-192", label: "Garage door 16'", category: "garage door", group: "Doors & windows", shape: "opening", width: 192, depth: 6, height: null },
+  { key: "window", label: "Window 36\"", category: "window", group: "Doors & windows", shape: "window", width: 36, depth: 4, height: null },
+  { key: "window-60", label: "Window 60\"", category: "window", group: "Doors & windows", shape: "window", width: 60, depth: 4, height: null },
 ];
 
 export const CUSTOM_SHAPES: CatalogEntry[] = [
@@ -124,9 +137,23 @@ export const FIXTURES: CatalogEntry[] = (
 
 export const ALL_ENTRIES: CatalogEntry[] = [...CUSTOM_SHAPES, ...CATALOG, ...FIXTURES];
 
+/** Kinds of door, window and opening (not offered as furniture categories). */
+export const OPENING_CATEGORIES = new Set(["door", "double door", "sliding door", "pocket door", "bifold door", "opening", "garage door", "window"]);
+
+/**
+ * What kind of opening an item is. Older detected openings kept the kind only in their label
+ * ("Sliding door"), so fall back to that.
+ */
+export function openingKind(item: { category: string; label: string }): string {
+  const c = item.category.toLowerCase();
+  if (c !== "opening") return c;
+  const l = item.label.toLowerCase();
+  return OPENING_CATEGORIES.has(l) ? l : "opening";
+}
+
 /** Categories offered when labeling a custom shape. */
 export const CATEGORIES = Array.from(new Set(CATALOG.map((c) => c.category)))
-  .filter((c) => c !== "door" && c !== "window")
+  .filter((c) => !OPENING_CATEGORIES.has(c))
   .concat(["lamp", "plant", "mirror", "storage", "cabinet", "shelf", "piano", "other"])
   .sort();
 
@@ -148,4 +175,4 @@ export const STATUS_COLORS: Record<Item["status"], { fill: string; stroke: strin
   "to-buy": { fill: "rgba(245,158,11,0.35)", stroke: "#d97706" },
 };
 
-export const PASSIVE_CATEGORIES = new Set(["rug", "door", "window", "opening"]);
+export const PASSIVE_CATEGORIES = new Set(["rug", "door", "window", "opening", "double door", "sliding door", "pocket door", "bifold door", "garage door"]);

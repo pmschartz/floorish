@@ -2,7 +2,7 @@ import { describe, expect, it } from "vitest";
 import type { Item } from "../../shared/schemas";
 import { rectLocal } from "../model/geometry";
 import { defaultOpts, findWallBand, type Mask } from "./snap";
-import { alignWalls, connectWalls, fitOpeningsToWalls, simplifyOutline } from "./walls";
+import { alignWalls, connectWalls, fitOpeningsToWalls, simplifyOutline, snapOpeningToWall } from "./walls";
 
 /** A 1000×1000 image with one horizontal wall at rows [y0, y1], drawn as described. */
 function drawWall(kind: "solid" | "outlined" | "double", y0: number, y1: number) {
@@ -93,5 +93,22 @@ describe("lining up walls", () => {
     expect(Math.max(...alignWalls(step)[1].polygon.map((p) => p.x))).toBe(130); // 30" step stays
     const out = simplifyOutline([{ x: 0, y: 0 }, { x: 0, y: 50 }, { x: 0, y: 100 }, { x: 100, y: 100 }, { x: 100, y: 0 }], [7, 2, 5, 5, 5]);
     expect(out.polygon).toHaveLength(5); // 7" and 2" walls meet at (0,50): corner kept
+  });
+});
+
+describe("snapping doors into walls", () => {
+  const rooms = [{ polygon: rectLocal(0, 0, 100, 100), walls: [5, 5, 5, 5] }];
+  it("turns, centres and sizes a door dropped near a wall, swinging into the room", () => {
+    // Dropped 6" inside the right wall, not turned.
+    const out = snapOpeningToWall({ shape: "door" as const, x: 94, y: 50, width: 30, depth: 2, rotation: 0 }, rooms);
+    expect(out).toMatchObject({ x: 102.5, y: 50, depth: 5, rotation: 90 }); // front faces −x: into the room
+  });
+  it("keeps a door's swing when it's already along the wall, and stays inside the wall's length", () => {
+    const out = snapOpeningToWall({ shape: "opening" as const, x: 95, y: -2, width: 36, depth: 4, rotation: 180 }, rooms);
+    expect(out).toMatchObject({ x: 82, y: -2.5, depth: 5, rotation: 180 });
+  });
+  it("leaves things alone away from walls", () => {
+    const door = { shape: "door" as const, x: 50, y: 50, width: 30, depth: 2, rotation: 0 };
+    expect(snapOpeningToWall(door, rooms)).toEqual(door);
   });
 });

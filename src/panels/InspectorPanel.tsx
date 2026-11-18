@@ -1,5 +1,5 @@
 import { FIXTURE_KINDS, ITEM_STATUSES, ROOM_TYPES, type FixtureKind, type Item, type Room } from "../../shared/schemas";
-import { CATEGORIES, clearancesFor, FIXTURE_LABEL } from "../catalog/furniture";
+import { CATEGORIES, clearancesFor, FIXTURE_LABEL, OPENING_CATEGORIES, openingKind } from "../catalog/furniture";
 import { bbox, polygonArea } from "../model/geometry";
 import { formatArea, formatLength } from "../model/units";
 import { effectivePpi, usePlan } from "../state/planStore";
@@ -26,6 +26,17 @@ export function InspectorPanel() {
   if (room) return <RoomInspector key={room.id} room={room} />;
   return <PlanOverview />;
 }
+
+/** The kinds of door and opening an item can be switched between. */
+const DOOR_KINDS: Array<[string, string]> = [
+  ["door", "Swing door"],
+  ["double door", "Double door"],
+  ["sliding door", "Sliding door"],
+  ["pocket door", "Pocket door"],
+  ["bifold door", "Bifold door"],
+  ["opening", "Opening (no door)"],
+  ["garage door", "Garage door"],
+];
 
 function ItemInspector({ item }: { item: Item }) {
   const units = usePlan((s) => s.units);
@@ -55,6 +66,24 @@ function ItemInspector({ item }: { item: Item }) {
             }}
           >
             {FIXTURE_KINDS.map((k) => <option key={k} value={k}>{FIXTURE_LABEL[k]}</option>)}
+          </select>
+        </label>
+      )}
+      {(item.shape === "door" || item.shape === "opening") && (
+        <label className="field">
+          <span>Type</span>
+          <select
+            value={openingKind(item)}
+            onChange={(e) => {
+              const kind = e.target.value;
+              const swings = kind === "door" || kind === "double door";
+              // Keep a custom label; replace a default one ("Door", "Opening", "Sliding door"…).
+              const wasDefault = !item.label || OPENING_CATEGORIES.has(item.label.toLowerCase()) || /^(door|double door|window)\b/i.test(item.label);
+              const label = kind.charAt(0).toUpperCase() + kind.slice(1);
+              set({ category: kind, shape: swings ? "door" : "opening", ...(wasDefault ? { label } : {}) });
+            }}
+          >
+            {DOOR_KINDS.map(([k, name]) => <option key={k} value={k}>{name}</option>)}
           </select>
         </label>
       )}

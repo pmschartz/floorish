@@ -332,3 +332,43 @@ export function standardizeWalls<R extends Pick<Room, "polygon" | "walls">>(
   });
   return { rooms: out, standard };
 }
+
+/** How close (inches) a door, window or opening has to be to a wall to snap into it. */
+const SNAP_TO_WALL_IN = 24;
+
+/**
+ * Snap a door, window or opening into the nearest wall: turned to run along it, centred in it,
+ * as deep as the wall. A door keeps its swing if it was already along that wall; otherwise it
+ * swings into the room the wall belongs to. Left as is if no wall is near.
+ */
+export function snapOpeningToWall<T extends Pick<Item, "shape" | "x" | "y" | "width" | "depth" | "rotation">>(
+  item: T,
+  rooms: Pick<Room, "polygon" | "walls">[],
+): T {
+  if (item.shape !== "door" && item.shape !== "window" && item.shape !== "opening") return item;
+  let best: { e: RoomEdge; t: number; d: number } | null = null;
+  for (const e of roomEdges(rooms)) {
+    const t = rooms[e.room].walls ? rooms[e.room].walls![e.edge] : 5;
+    if (t == null) continue;
+    const along = e.axis === "h" ? item.x : item.y, perp = e.axis === "h" ? item.y : item.x;
+    if (along < e.span[0] - 2 || along > e.span[1] + 2) continue;
+    const mid = e.coord - e.inward * (t / 2);
+    const d = Math.abs(perp - mid);
+    if (d <= SNAP_TO_WALL_IN && (!best || d < best.d)) best = { e, t, d };
+  }
+  if (!best) return item;
+  const { e, t } = best;
+  const mid = e.coord - e.inward * (t / 2);
+  const rot = ((Math.round(item.rotation / 90) * 90) % 360 + 360) % 360;
+  const onAxis = e.axis === "h" ? rot === 0 || rot === 180 : rot === 90 || rot === 270;
+  // At 0° a door's front (its swing side) faces +y; at 90° it faces −x (rotation is clockwise).
+  const intoRoom = e.axis === "h" ? (e.inward > 0 ? 0 : 180) : (e.inward > 0 ? 270 : 90);
+  const rotation = onAxis ? rot : intoRoom;
+  // Keep the opening inside the wall's length.
+  const half = item.width / 2;
+  const along = e.axis === "h" ? item.x : item.y;
+  const clamped = e.span[1] - e.span[0] > item.width ? Math.min(e.span[1] - half, Math.max(e.span[0] + half, along)) : (e.span[0] + e.span[1]) / 2;
+  return e.axis === "h"
+    ? { ...item, x: clamped, y: mid, depth: t, rotation }
+    : { ...item, x: mid, y: clamped, depth: t, rotation };
+}

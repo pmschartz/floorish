@@ -406,7 +406,7 @@ export function buildProposal(raw: RawDetection, factor: number, mask: Mask, pla
       }
     } else {
       openings.push(baseItem({
-        shape: "opening", category: "opening", label: KIND_LABEL[o.kind as keyof typeof KIND_LABEL] ?? "Opening",
+        shape: "opening", category: (KIND_LABEL[o.kind as keyof typeof KIND_LABEL] ?? "Opening").toLowerCase(), label: KIND_LABEL[o.kind as keyof typeof KIND_LABEL] ?? "Opening",
         ...center, width, depth, rotation: s.axis === "h" ? 0 : 90,
       }));
     }

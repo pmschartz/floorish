@@ -14,6 +14,7 @@ function ShapeIcon({ shape }: { shape: CatalogEntry["shape"] }) {
         : shape === "fixture" ? <><rect x="2.5" y="2.5" width="13" height="13" rx="1" {...common} /><circle cx="9" cy="10" r="3.5" {...common} /></>
         : shape === "door" ? <><path d="M3 15V3" {...common} /><path d="M3 3a12 12 0 0 1 12 12" {...common} strokeDasharray="2 2" /></>
         : shape === "window" ? <><rect x="2" y="7" width="14" height="4" {...common} /><path d="M2 9h14" {...common} /></>
+        : shape === "opening" ? <><path d="M1 7h4v4H1M17 7h-4v4h4" {...common} /><path d="M5 9h8" {...common} strokeDasharray="2 2" /></>
         : <rect x="2.5" y="4.5" width="13" height="9" rx="1" {...common} />}
     </svg>
   );

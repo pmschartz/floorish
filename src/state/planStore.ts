@@ -3,6 +3,7 @@ import { temporal } from "zundo";
 import { create } from "zustand";
 import type { Item, Plan, Point, Room, StyleProfile } from "../../shared/schemas";
 import { api, setApiPlan } from "../api/client";
+import { snapOpeningToWall } from "../detect/walls";
 import type { CatalogEntry } from "../catalog/furniture";
 import type { UnitSystem } from "../model/units";
 
@@ -161,12 +162,20 @@ export const usePlan = create<PlanState>()(
             shopResults: null,
             ...overrides,
           };
-          edit((p) => ({ ...p, items: [...p.items, item] }));
+          edit((p) => ({ ...p, items: [...p.items, snapOpeningToWall(item, p.rooms)] }));
           set({ selectedItemId: item.id, selectedRoomId: null });
           return item;
         },
         updateItem: (id, patch) =>
-          edit((p) => ({ ...p, items: p.items.map((i) => (i.id === id ? { ...i, ...patch } : i)) })),
+          edit((p) => ({
+            ...p,
+            items: p.items.map((i) => {
+              if (i.id !== id) return i;
+              const next = { ...i, ...patch };
+              // Moving a door, window or opening drops it into the nearest wall.
+              return "x" in patch || "y" in patch ? snapOpeningToWall(next, p.rooms) : next;
+            }),
+          })),
         removeItem: (id) => {
           edit((p) => ({ ...p, items: p.items.filter((i) => i.id !== id) }));
           if (get().selectedItemId === id) set({ selectedItemId: null });

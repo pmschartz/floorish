@@ -150,9 +150,24 @@ export function clearanceZone(item: Pick<Item, "x" | "y" | "rotation" | "width" 
  * opening toward its front.
  */
 export function doorSwing(
-  item: Pick<Item, "x" | "y" | "rotation" | "width" | "depth"> & { flip?: boolean },
+  item: Pick<Item, "x" | "y" | "rotation" | "width" | "depth"> & { flip?: boolean; category?: string },
   segments = 8,
 ): Point[] {
+  if (item.category === "double door") {
+    // Two leaves, each half the width, hinged at either end and meeting in the middle.
+    const r = item.width / 2, y0 = item.depth / 2;
+    const pts: Point[] = [{ x: -r, y: y0 }];
+    for (let i = segments; i >= 0; i--) {
+      const a = (i / segments) * (Math.PI / 2);
+      pts.push({ x: -r + r * Math.cos(a), y: y0 + r * Math.sin(a) });
+    }
+    for (let i = 0; i <= segments; i++) {
+      const a = (i / segments) * (Math.PI / 2);
+      pts.push({ x: r - r * Math.cos(a), y: y0 + r * Math.sin(a) });
+    }
+    pts.push({ x: r, y: y0 });
+    return pts.map((p) => toWorld(item, p));
+  }
   const dir = item.flip ? -1 : 1;
   const hinge = { x: -dir * item.width / 2, y: item.depth / 2 };
   const pts: Point[] = [hinge];

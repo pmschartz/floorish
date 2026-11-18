@@ -2,7 +2,7 @@ import type Konva from "konva";
 import { memo } from "react";
 import { Arc, Ellipse, Group, Line, Rect, Text } from "react-konva";
 import type { Item } from "../../shared/schemas";
-import { STATUS_COLORS } from "../catalog/furniture";
+import { openingKind, STATUS_COLORS } from "../catalog/furniture";
 import { FixtureSymbol } from "./FixtureSymbol";
 import { armDepth, outlineLocal, snap } from "../model/geometry";
 import { formatDims, type UnitSystem } from "../model/units";
@@ -74,6 +74,24 @@ function FurnitureShapeInner({ item, ppi, stageScale, units, selected, issue, dr
       // Leaf drawn open at 90°, hinged at the left end (right if flipped), swinging toward the front.
       const hx = item.flip ? w / 2 : -w / 2;
       const ink = clean && !selected && !issue ? "#3a3a3a" : stroke;
+      if (item.category === "double door") {
+        // Two leaves, hinged at either end, meeting in the middle.
+        const r = w / 2;
+        body = (
+          <>
+            <Rect x={-w / 2} y={-d / 2} width={w} height={d} fill="#fff"
+              stroke={clean && !selected && !issue ? undefined : stroke} strokeWidth={strokeWidth} />
+            <Line points={[-w / 2, d / 2, -w / 2, d / 2 + r]} stroke={ink} strokeWidth={strokeWidth * 1.4} />
+            <Line points={[w / 2, d / 2, w / 2, d / 2 + r]} stroke={ink} strokeWidth={strokeWidth * 1.4} />
+            <Arc x={-w / 2} y={d / 2} innerRadius={r} outerRadius={r} angle={90} rotation={0}
+              stroke={ink} strokeWidth={strokeWidth * 0.8} dash={clean ? undefined : [4 / stageScale, 3 / stageScale]} />
+            <Arc x={w / 2} y={d / 2} innerRadius={r} outerRadius={r} angle={90} rotation={90}
+              stroke={ink} strokeWidth={strokeWidth * 0.8} dash={clean ? undefined : [4 / stageScale, 3 / stageScale]} />
+            <Rect x={-w / 2} y={-d / 2} width={w} height={d + r} fill="transparent" />
+          </>
+        );
+        break;
+      }
       body = (
         <>
           <Rect x={-w / 2} y={-d / 2} width={w} height={d} fill="#fff"
@@ -102,14 +120,47 @@ function FurnitureShapeInner({ item, ppi, stageScale, units, selected, issue, dr
         </>
       );
       break;
-    case "opening":
-      body = clean ? (
+    case "opening": {
+      const kind = openingKind(item);
+      const ink = clean && !selected && !issue ? "#3a3a3a" : stroke;
+      const lw = 1.3 / stageScale;
+      // The gap in the wall, then the door's symbol inside it.
+      const gap = clean ? (
         <Rect x={-w / 2} y={-d / 2} width={w} height={d} fill="#fff" stroke={selected || issue ? stroke : undefined} strokeWidth={strokeWidth} />
       ) : (
         <Rect x={-w / 2} y={-d / 2} width={w} height={d} fill="rgba(255,255,255,0.6)" stroke={stroke} strokeWidth={strokeWidth}
           dash={[3 / stageScale, 3 / stageScale]} />
       );
+      let symbol: React.ReactNode = null;
+      if (kind === "sliding door") {
+        // Two panels on parallel tracks, overlapping in the middle.
+        const t = Math.max(d / 5, 1.5 / stageScale);
+        symbol = (
+          <>
+            <Rect x={-w / 2} y={-d / 4 - t / 2} width={w * 0.55} height={t} stroke={ink} strokeWidth={lw} />
+            <Rect x={w / 2 - w * 0.55} y={d / 4 - t / 2} width={w * 0.55} height={t} stroke={ink} strokeWidth={lw} />
+          </>
+        );
+      } else if (kind === "pocket door") {
+        // A panel across the opening that slides away into the wall (dashed, inside the wall).
+        symbol = (
+          <>
+            <Line points={[-w / 2, 0, w / 2, 0]} stroke={ink} strokeWidth={lw * 1.4} />
+            <Line points={[w / 2, 0, w * 1.4, 0]} stroke={ink} strokeWidth={lw} dash={[4 / stageScale, 3 / stageScale]} />
+          </>
+        );
+      } else if (kind === "bifold door") {
+        // Folding panels, drawn as a zigzag on the front side.
+        const leaf = w / 4, out = Math.min(leaf * 0.6, w * 0.2);
+        const pts = [-w / 2, d / 2, -w / 2 + leaf, d / 2 + out, -w / 2 + 2 * leaf, d / 2, w / 2 - leaf, d / 2 + out, w / 2, d / 2];
+        symbol = <Line points={pts} stroke={ink} strokeWidth={lw * 1.2} lineJoin="round" />;
+      } else if (kind === "garage door") {
+        // Overhead door: a dashed line where the door sits.
+        symbol = <Line points={[-w / 2, 0, w / 2, 0]} stroke={ink} strokeWidth={lw * 1.4} dash={[8 / stageScale, 5 / stageScale]} />;
+      }
+      body = <>{gap}{symbol}</>;
       break;
+    }
     case "fixture":
       body = (
         <FixtureSymbol kind={item.category} w={w} d={d} s={stageScale} clean={!!clean}
