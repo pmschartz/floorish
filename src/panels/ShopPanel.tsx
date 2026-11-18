@@ -4,7 +4,7 @@ import type { FitLabel, Item } from "../../shared/schemas";
 import { api } from "../api/client";
 import { roomFor } from "../checks/layoutChecks";
 import { formatDims, formatLength } from "../model/units";
-import { usePlan } from "../state/planStore";
+import { usePlan, keepResult } from "../state/planStore";
 import { describePaint } from "../../shared/sw";
 
 // Searches keep running (and save their results) even if you select something else.
@@ -36,7 +36,7 @@ async function runSearch(item: Item, opts: { under: number; over: number; maxPri
     });
     // The item may have been deleted while the search ran.
     if (usePlan.getState().plan?.items.some((i) => i.id === item.id)) {
-      usePlan.getState().updateItem(item.id, { shopResults: results });
+      keepResult((p) => ({ ...p, items: p.items.map((i) => (i.id === item.id ? { ...i, shopResults: results } : i)) }));
     }
   } catch (e) {
     useShopJobs.setState((s) => ({ errors: { ...s.errors, [item.id]: e instanceof Error ? e.message : String(e) } }));

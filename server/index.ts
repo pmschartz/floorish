@@ -9,6 +9,8 @@ import { roomChat } from "./claude/roomChat";
 import { shopForItem } from "./claude/shop";
 import { suggestForRoom } from "./claude/suggestRoom";
 import * as store from "./storage";
+import { savedAnswer } from "./aiCache";
+import { requestPlan, spendSummary } from "./usage";
 
 const PORT = Number(process.env.API_PORT ?? 5174);
 const app = express();
@@ -16,6 +18,8 @@ const upload = multer({ storage: multer.memoryStorage(), limits: { fileSize: 25 
 
 app.use("/api/detect", express.json({ limit: "30mb" })); // base64 floor plan image
 app.use(express.json({ limit: "5mb" }));
+// Remember which plan each request is for, so Claude costs can be totted up per plan.
+app.use("/api", (req, _res, next) => requestPlan.run(String(req.header("x-plan-id") ?? ""), next));
 app.use("/images", express.static(store.IMAGES_DIR, { maxAge: "1d", immutable: true }));
 
 type Handler = (req: Request, res: Response) => Promise<unknown>;
@@ -71,10 +75,14 @@ app.post("/api/suggest-room", route(async (req, res) => {
   }
 }));
 
+app.get("/api/usage", route(async (req, res) => res.json(await spendSummary(String(req.query.planId ?? "")))));
+
 app.post("/api/redesign-room", route(async (req, res) => {
-  const body = RedesignRequestSchema.parse(req.body);
+  const { force, ...body } = RedesignRequestSchema.parse(req.body);
   try {
-    res.json(await redesignRoom(body));
+    const out = await savedAnswer("redesign", body, force, () => redesignRoom({ ...body, force }));
+    res.setHeader("X-Saved-Answer", out.reused ? "1" : "0");
+    res.json(out.value);
   } catch (e) {
     throw toAiError(e);
   }
@@ -90,9 +98,11 @@ app.post("/api/room-chat", route(async (req, res) => {
 }));
 
 app.post("/api/detect", route(async (req, res) => {
-  const body = DetectRequestSchema.parse(req.body);
+  const { force, ...body } = DetectRequestSchema.parse(req.body);
   try {
-    res.json(await detectFloorPlan(body));
+    const out = await savedAnswer("detect", body, force, () => detectFloorPlan({ ...body, force }));
+    res.setHeader("X-Saved-Answer", out.reused ? "1" : "0");
+    res.json(out.value);
   } catch (e) {
     throw toAiError(e);
   }

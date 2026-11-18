@@ -1,6 +1,6 @@
 import { nanoid } from "nanoid";
 import { useMemo, useState } from "react";
-import type { Item, Plan, Room, RoomVersion } from "../../shared/schemas";
+import type { ChatMessage, Item, Plan, Room, RoomVersion } from "../../shared/schemas";
 import { api } from "../api/client";
 import { runLayoutChecks } from "../checks/layoutChecks";
 import { bbox, itemCorners, pointInPolygon } from "../model/geometry";
@@ -16,7 +16,7 @@ import {
   switchVersion,
   versionItems,
 } from "../model/versions";
-import { usePlan } from "../state/planStore";
+import { usePlan, keepRoomResult, undo } from "../state/planStore";
 
 /** A room's versions, the redesign brief, and the room chat. */
 export function RoomDesignPanel({ room }: { room: Room }) {
@@ -125,18 +125,21 @@ function RedesignForm({ room }: { room: Room }) {
   const [fromScratch, setFromScratch] = useState(true);
   const [keep, setKeep] = useState<Set<string>>(new Set());
   const [fengShui, setFengShui] = useState(true);
-  const [count, setCount] = useState(3);
+  const [count, setCount] = useState(2);
+  const [reusedNote, setReusedNote] = useState(false);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState("");
   const [result, setResult] = useState("");
   const current = useMemo(() => roomFurniture(plan.items, room), [plan.items, room]);
 
-  const go = async () => {
+  const go = async (force = false) => {
     setBusy(true);
     setError("");
     setResult("");
+    setReusedNote(false);
     try {
-      const res = await api.redesignRoom({
+      const { data: res, reused } = await api.redesignRoom({
+        force,
         context: buildRoomContext(plan, room),
         brief,
         keepIds: fromScratch ? [] : [...keep],
@@ -144,11 +147,19 @@ function RedesignForm({ room }: { room: Room }) {
         count,
       });
       let moved = 0, unresolved = 0;
+      // A saved answer can repeat layouts the room already has; don't add them twice.
+      const existing = new Set((room.versions ?? []).map((v) => v.name + "\n" + v.concept));
+      const layouts = res.layouts.filter((l) => !existing.has(l.name + "\n" + l.concept));
+      if (reused) setReusedNote(true);
+      if (!layouts.length) {
+        setResult("You asked for exactly this before, and those layouts are already in Versions. No charge.");
+        return;
+      }
       applyPlan((p) => {
         let next = ensureVersions(p, room.id);
         const r = next.rooms.find((x) => x.id === room.id)!;
         let first: string | null = null;
-        for (const layout of res.layouts) {
+        for (const layout of layouts) {
           const items = placedToItems(next, r, layout.items, () => nanoid(8));
           const fixed = repairLayout(next, r, items);
           moved += fixed.moved;
@@ -160,11 +171,12 @@ function RedesignForm({ room }: { room: Room }) {
         return first ? switchVersion(next, room.id, first) : next;
       });
       setResult(
-        `Added ${res.layouts.length} ${res.layouts.length === 1 ? "version" : "versions"}; showing the first.` +
+        (reused ? "Same request as before, so these are the saved layouts (no charge). " : "") +
+        `Added ${layouts.length} ${layouts.length === 1 ? "version" : "versions"}; showing the first.` +
           (moved ? ` Nudged ${moved} ${moved === 1 ? "piece" : "pieces"} to fit.` : "") +
           (unresolved ? ` ${unresolved} still need a look (see Checks).` : ""),
       );
-      setOpen(false);
+      if (!reused) setOpen(false);
     } catch (e) {
       setError(e instanceof Error ? e.message : String(e));
     } finally {
@@ -180,6 +192,12 @@ function RedesignForm({ room }: { room: Room }) {
       </section>
     );
   }
+  const fresh = reusedNote && (
+    <p className="small">
+      {result}{" "}
+      <button className="link" onClick={() => void go(true)} disabled={busy}>Get new layouts instead</button> (a new, paid request).
+    </p>
+  );
   return (
     <section className="redesign">
       <h3>Redesign {room.name}</h3>
@@ -210,32 +228,34 @@ function RedesignForm({ room }: { room: Room }) {
       </div>
       <p className="muted small">Uses your style and palette, the room's doors, windows and fixtures, and standard clearances. Takes a minute or two; a few cents.</p>
       <div className="row">
-        <button className="primary" onClick={go} disabled={busy}>{busy ? "Designing…" : `Get ${count} ${count === 1 ? "layout" : "layouts"}`}</button>
+        <button className="primary" onClick={() => void go()} disabled={busy}>{busy ? "Designing…" : `Get ${count} ${count === 1 ? "layout" : "layouts"}`}</button>
         <button onClick={() => setOpen(false)} disabled={busy}>Cancel</button>
       </div>
       {busy && <p className="spinner-line small"><span className="spinner" aria-hidden /> Claude is laying out {room.name}…</p>}
       {error && <p className="error-text">{error}</p>}
+      {fresh}
     </section>
   );
 }
 
 // ---------------- Chat ----------------
 
-type ChatMsg = { role: "user" | "assistant"; text: string; changed?: string[] };
-// Chats last for the session (per room), not saved with the plan.
-const chats = new Map<string, ChatMsg[]>();
+/** Only the most recent messages go to Claude: older ones cost more and rarely matter. */
+const CHAT_HISTORY_SENT = 20;
+/** How many messages a room keeps. */
+const CHAT_KEPT = 60;
 
 function RoomChat({ room }: { room: Room }) {
   const applyPlan = usePlan((s) => s.applyPlan);
-  const [msgs, setMsgs] = useState<ChatMsg[]>(chats.get(room.id) ?? []);
+  const msgs: ChatMessage[] = room.chat ?? [];
+  const [pending, setPending] = useState<string | null>(null);
   const [text, setText] = useState("");
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState("");
 
-  const save = (m: ChatMsg[]) => {
-    chats.set(room.id, m);
-    setMsgs(m);
-  };
+  // Saved with the room (no Undo step), so a reload doesn't lose the conversation.
+  const save = (m: ChatMessage[]) => keepRoomResult(room.id, { chat: m.slice(-CHAT_KEPT) });
+  const at = () => new Date().toISOString();
 
   const send = async () => {
     const message = text.trim();
@@ -243,8 +263,8 @@ function RoomChat({ room }: { room: Room }) {
     const plan = usePlan.getState().plan!;
     const r = plan.rooms.find((x) => x.id === room.id)!;
     const active = r.versions?.find((v) => v.id === r.activeVersionId);
-    const withUser = [...msgs, { role: "user" as const, text: message }];
-    save(withUser);
+    const withUser: ChatMessage[] = [...msgs, { role: "user", text: message, changed: [], at: at() }];
+    setPending(message);
     setText("");
     setBusy(true);
     setError("");
@@ -252,7 +272,7 @@ function RoomChat({ room }: { room: Room }) {
       const res = await api.roomChat({
         context: buildRoomContext(plan, r),
         versionName: active?.name ?? "Current",
-        history: msgs.map((m) => ({ role: m.role, text: m.changed?.length ? `${m.text}\n(Changes made: ${m.changed.join(", ")})` : m.text })),
+        history: msgs.slice(-CHAT_HISTORY_SENT).map((m) => ({ role: m.role, text: m.changed.length ? `${m.text}\n(Changes made: ${m.changed.join(", ")})` : m.text })),
         message,
       });
       let changed: string[] = [];
@@ -272,18 +292,20 @@ function RoomChat({ room }: { room: Room }) {
           return replaceLiveFurniture(next, room.id, out.items);
         });
       }
-      save([...withUser, { role: "assistant", text: res.reply, changed }]);
+      save([...withUser, { role: "assistant", text: res.reply, changed, at: at() }]);
     } catch (e) {
       setError(e instanceof Error ? e.message : String(e));
+      setText(message); // put the message back so it can be sent again
     } finally {
       setBusy(false);
+      setPending(null);
     }
   };
 
   return (
     <section className="room-chat">
       <h3>Talk it through</h3>
-      {msgs.length === 0 && (
+      {msgs.length === 0 && !pending && (
         <p className="muted small">
           Ask about this room with the whole house in view, e.g. “Where should the desk go for good feng shui?” or
           “Swap the armchair for a reading nook by the window.” Changes go into a version you can flip back from.
@@ -293,14 +315,15 @@ function RoomChat({ room }: { room: Room }) {
         {msgs.map((m, i) => (
           <div key={i} className={`chat-msg ${m.role}`}>
             <p>{m.text}</p>
-            {m.changed && m.changed.length > 0 && (
+            {m.changed.length > 0 && (
               <p className="chat-changes small">
                 Changed: {m.changed.join(", ")}.{" "}
-                {i === msgs.length - 1 && <button className="link" onClick={() => usePlan.temporal.getState().undo()}>Undo</button>}
+                {i === msgs.length - 1 && <button className="link" onClick={undo}>Undo</button>}
               </p>
             )}
           </div>
         ))}
+        {pending && <div className="chat-msg user"><p>{pending}</p></div>}
         {busy && <p className="spinner-line small"><span className="spinner" aria-hidden /> Thinking…</p>}
       </div>
       {error && <p className="error-text">{error}</p>}

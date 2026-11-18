@@ -1,53 +1,76 @@
 import { useState } from "react";
-import type { Room, SuggestRoomResponse, Suggestion } from "../../shared/schemas";
+import type { Plan, Room, SuggestRoomRequest, Suggestion } from "../../shared/schemas";
 import { api } from "../api/client";
 import { CATALOG } from "../catalog/furniture";
 import { roomFor } from "../checks/layoutChecks";
 import { findOpenSpot } from "../checks/placement";
 import { bbox, polygonArea } from "../model/geometry";
+import { normalizeCategory } from "../model/roomContext";
 import { formatDims } from "../model/units";
-import { usePlan } from "../state/planStore";
+import { keepRoomResult, usePlan } from "../state/planStore";
 import { describePaint } from "../../shared/sw";
 
-// Remember the last answer per room for this session so switching rooms doesn't lose it.
-const cache = new Map<string, SuggestRoomResponse>();
+/** What Claude is told about the room: its size, furniture, paint and the house style. */
+function buildRequest(plan: Plan, room: Room): SuggestRoomRequest {
+  const b = bbox(room.polygon);
+  const inRoom = plan.items.filter((i) => i.shape !== "door" && i.shape !== "window" && roomFor(i, [room]));
+  return {
+    room: {
+      name: room.name,
+      type: room.type,
+      widthIn: b.width,
+      depthIn: b.height,
+      areaSqFt: Math.round(polygonArea(room.polygon) / 144),
+      paint: describePaint(room.paint),
+    },
+    items: inRoom.map((i) => ({
+      label: i.label || i.category || "unlabeled",
+      category: i.category,
+      widthIn: i.width,
+      depthIn: i.depth,
+      status: i.status,
+      position: `${Math.round(i.x - b.minX)}" from the left wall, ${Math.round(i.y - b.minY)}" from the top wall, rotated ${Math.round(i.rotation)}°`,
+    })),
+    style: plan.style,
+  };
+}
+
+/**
+ * Short fingerprint of what matters to the suggestions: the room, which pieces are in it (not
+ * where they sit), the style and the paint. Moving furniture around doesn't make them stale.
+ */
+function fingerprint(req: SuggestRoomRequest): string {
+  const str = JSON.stringify({
+    room: req.room,
+    items: req.items.map((i) => [i.label, i.category, Math.round(i.widthIn), Math.round(i.depthIn)]).sort(),
+    style: req.style,
+  });
+  let h = 0x811c9dc5;
+  for (let i = 0; i < str.length; i++) h = Math.imul(h ^ str.charCodeAt(i), 0x01000193);
+  return (h >>> 0).toString(36);
+}
 
 export function RoomSuggestPanel({ room }: { room: Room }) {
   const units = usePlan((s) => s.units);
-  const [data, setData] = useState<SuggestRoomResponse | null>(cache.get(room.id) ?? null);
+  // Rebuilt whenever the plan changes, to spot when the room has changed since Claude answered.
+  const currentBasis = usePlan((s) => (s.plan ? fingerprint(buildRequest(s.plan, room)) : ""));
+  const saved = room.suggestions;
+  const data = saved?.response ?? null;
+  const stale = !!saved && saved.basis !== currentBasis;
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
-  const [placed, setPlaced] = useState<Record<number, string>>({});
+  const [note, setNote] = useState<Record<number, string>>({});
 
   const ask = async () => {
     const plan = usePlan.getState().plan!;
-    const b = bbox(room.polygon);
-    const inRoom = plan.items.filter((i) => i.shape !== "door" && i.shape !== "window" && roomFor(i, [room]));
+    const req = buildRequest(plan, room);
     setLoading(true);
     setError("");
     try {
-      const res = await api.suggestRoom({
-        room: {
-          name: room.name,
-          type: room.type,
-          widthIn: b.width,
-          depthIn: b.height,
-          areaSqFt: Math.round(polygonArea(room.polygon) / 144),
-          paint: describePaint(room.paint),
-        },
-        items: inRoom.map((i) => ({
-          label: i.label || i.category || "unlabeled",
-          category: i.category,
-          widthIn: i.width,
-          depthIn: i.depth,
-          status: i.status,
-          position: `${Math.round(i.x - b.minX)}" from the left wall, ${Math.round(i.y - b.minY)}" from the top wall, rotated ${Math.round(i.rotation)}°`,
-        })),
-        style: plan.style,
-      });
-      cache.set(room.id, res);
-      setData(res);
-      setPlaced({});
+      const res = await api.suggestRoom(req);
+      // Saved with the room (and the plan file), so it's there next time without asking again.
+      keepRoomResult(room.id, { suggestions: { askedAt: new Date().toISOString(), basis: fingerprint(req), response: res, added: [] } });
+      setNote({});
     } catch (e) {
       setError(e instanceof Error ? e.message : String(e));
     } finally {
@@ -59,22 +82,27 @@ export function RoomSuggestPanel({ room }: { room: Room }) {
     const plan = usePlan.getState().plan!;
     const spot = findOpenSpot(room, plan.items, s.widthIn, s.depthIn);
     if (!spot) {
-      setPlaced((p) => ({ ...p, [idx]: "No open spot big enough. Make room and try again." }));
+      setNote((p) => ({ ...p, [idx]: "No open spot big enough. Make room and try again." }));
       return;
     }
-    const match = CATALOG.find((c) => c.category === s.category.toLowerCase());
-    const entry = match ?? { key: "custom-rect", label: s.label, category: s.category.toLowerCase(), group: "Custom", shape: "rect" as const, width: s.widthIn, depth: s.depthIn, height: null };
+    // A specific category (e.g. "lighting" + "Arc floor lamp" → lamp) so catalog pieces match.
+    const category = normalizeCategory(s.category, s.label);
+    const match = CATALOG.find((c) => c.category === category);
+    const entry = match ?? { key: "custom-rect", label: s.label, category, group: "Custom", shape: "rect" as const, width: s.widthIn, depth: s.depthIn, height: null };
     usePlan.getState().addItem(entry, spot, {
       catalogKey: match ? match.key : "custom",
       label: s.label,
-      category: s.category.toLowerCase(),
+      category,
       width: s.widthIn,
       depth: s.depthIn,
       rotation: spot.rotation,
       status: "to-buy",
       notes: s.placementHint,
     });
-    setPlaced((p) => ({ ...p, [idx]: "Added. Move it where the hint says." }));
+    // The new piece is one Claude suggested, so the answer still fits the room.
+    const basis = fingerprint(buildRequest(usePlan.getState().plan!, room));
+    if (saved) keepRoomResult(room.id, { suggestions: { ...saved, basis, added: [...saved.added, idx] } });
+    setNote((p) => ({ ...p, [idx]: "Added. Move it where the hint says." }));
   };
 
   return (
@@ -87,6 +115,10 @@ export function RoomSuggestPanel({ room }: { room: Room }) {
       {error && <p className="error-text">{error}</p>}
       {data && (
         <>
+          <p className="muted small">
+            Suggested {new Date(saved!.askedAt).toLocaleDateString(undefined, { month: "short", day: "numeric" })}.{" "}
+            {stale ? "The room or your style has changed since; ask again for fresh ideas." : "Saved with the plan, so there's no need to ask again."}
+          </p>
           <p className="small">{data.summary}</p>
           {data.suggestions.map((s, i) => (
             <article key={i} className="suggestion">
@@ -97,7 +129,9 @@ export function RoomSuggestPanel({ room }: { room: Room }) {
               <p className="small muted">{formatDims(s.widthIn, s.depthIn, units)} · {s.category}</p>
               <p className="small">{s.reason}</p>
               <p className="small muted">Where: {s.placementHint}</p>
-              {placed[i] ? <p className="small">{placed[i]}</p> : <button onClick={() => add(s, i)}>Add to plan</button>}
+              {note[i] ? <p className="small">{note[i]}</p>
+                : saved?.added.includes(i) ? <p className="small muted">Added to the plan.</p>
+                : <button onClick={() => add(s, i)}>Add to plan</button>}
             </article>
           ))}
         </>

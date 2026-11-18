@@ -8,6 +8,7 @@ import type {
   RoomChatRequest,
   RoomChatResponse,
   ShopRequest,
+  SpendSummary,
   ShopResults,
   SuggestRoomRequest,
   SuggestRoomResponse,
@@ -19,18 +20,44 @@ export class ApiError extends Error {
   }
 }
 
-async function req<T>(method: string, url: string, body?: unknown, signal?: AbortSignal): Promise<T> {
+let planId = "";
+/** The open plan, sent with every request so Claude costs are tracked per plan. */
+export const setApiPlan = (id: string) => { planId = id; };
+
+/** Fired after every Claude call so the spend meter can refresh. */
+export const SPEND_EVENT = "claude-spend";
+
+async function send(method: string, url: string, body?: unknown, signal?: AbortSignal): Promise<Response> {
   const isForm = body instanceof FormData;
+  const headers: Record<string, string> = { "X-Plan-Id": planId };
+  if (body && !isForm) headers["Content-Type"] = "application/json";
   const res = await fetch(url, {
     method,
-    headers: body && !isForm ? { "Content-Type": "application/json" } : undefined,
+    headers,
     body: body === undefined ? undefined : isForm ? body : JSON.stringify(body),
     signal,
   });
+  if (!res.ok) {
+    const data = await res.json().catch(() => ({}));
+    throw new ApiError(res.status, data.error ?? `Request failed (${res.status})`);
+  }
+  return res;
+}
+
+async function req<T>(method: string, url: string, body?: unknown, signal?: AbortSignal): Promise<T> {
+  const res = await send(method, url, body, signal);
   if (res.status === 204) return undefined as T;
-  const data = await res.json().catch(() => ({}));
-  if (!res.ok) throw new ApiError(res.status, data.error ?? `Request failed (${res.status})`);
-  return data as T;
+  return (await res.json().catch(() => ({}))) as T;
+}
+
+/** A Claude call: also says whether the server reused a saved answer (no charge), and refreshes the meter. */
+async function ai<T>(url: string, body: unknown, signal?: AbortSignal): Promise<{ data: T; reused: boolean }> {
+  try {
+    const res = await send("POST", url, body, signal);
+    return { data: (await res.json()) as T, reused: res.headers.get("X-Saved-Answer") === "1" };
+  } finally {
+    window.dispatchEvent(new Event(SPEND_EVENT));
+  }
 }
 
 export const api = {
@@ -46,9 +73,10 @@ export const api = {
     fd.append("heightPx", String(heightPx));
     return req<Plan>("POST", `/api/plans/${id}/image`, fd);
   },
-  shop: (body: ShopRequest, signal?: AbortSignal) => req<ShopResults>("POST", "/api/shop", body, signal),
-  suggestRoom: (body: SuggestRoomRequest) => req<SuggestRoomResponse>("POST", "/api/suggest-room", body),
-  detect: (body: DetectRequest, signal?: AbortSignal) => req<RawDetection>("POST", "/api/detect", body, signal),
-  redesignRoom: (body: RedesignRequest) => req<RedesignResponse>("POST", "/api/redesign-room", body),
-  roomChat: (body: RoomChatRequest) => req<RoomChatResponse>("POST", "/api/room-chat", body),
+  shop: async (body: ShopRequest, signal?: AbortSignal) => (await ai<ShopResults>("/api/shop", body, signal)).data,
+  suggestRoom: async (body: SuggestRoomRequest) => (await ai<SuggestRoomResponse>("/api/suggest-room", body)).data,
+  detect: (body: Omit<DetectRequest, "force"> & { force?: boolean }, signal?: AbortSignal) => ai<RawDetection>("/api/detect", body, signal),
+  redesignRoom: (body: Omit<RedesignRequest, "force"> & { force?: boolean }) => ai<RedesignResponse>("/api/redesign-room", body),
+  roomChat: async (body: RoomChatRequest) => (await ai<RoomChatResponse>("/api/room-chat", body)).data,
+  spend: () => req<SpendSummary>("GET", `/api/usage?planId=${encodeURIComponent(planId)}`),
 };

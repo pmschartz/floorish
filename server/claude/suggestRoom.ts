@@ -1,6 +1,6 @@
 import { betaZodOutputFormat } from "@anthropic-ai/sdk/helpers/beta/zod";
 import { SuggestRoomResponseSchema, type SuggestRoomRequest, type SuggestRoomResponse } from "../../shared/schemas";
-import { AiError, anthropic, FALLBACK, MODEL } from "./client";
+import { AiError, anthropic, FALLBACK, LIGHT_MODEL, logUsage } from "./client";
 import { describeEntry } from "../../shared/sw";
 
 const SYSTEM = `You are an interior design assistant inside a home floor-planning app.
@@ -10,9 +10,10 @@ Given one room's size, what's already in it, and the owner's style, suggest what
 - Only suggest things that will physically fit in the open floor space. Give realistic sizes in inches for each piece.
 - Don't suggest anything that's already there unless the room clearly needs more of it.
 - Order by priority. Keep it to the 3 to 7 most useful pieces.
+- category: one specific furniture word or two (coffee table, side table, dresser, floor lamp, table lamp, armchair, rug, bookcase, plant…), never a group name like seating, storage, lighting or decor.
 - placementHint should say where it goes relative to what's there (e.g. "left of the sofa, against the wall").`;
 
-export async function suggestForRoom(req: SuggestRoomRequest): Promise<SuggestRoomResponse> {
+export async function suggestForRoom(req: SuggestRoomRequest, model = LIGHT_MODEL): Promise<SuggestRoomResponse> {
   const s = req.style;
   const lines = [
     `Room: ${req.room.name} (${req.room.type}), about ${Math.round(req.room.widthIn)}" × ${Math.round(req.room.depthIn)}", ${req.room.areaSqFt} sq ft.`,
@@ -27,7 +28,7 @@ export async function suggestForRoom(req: SuggestRoomRequest): Promise<SuggestRo
   ].filter(Boolean);
 
   const msg = await anthropic().beta.messages.parse({
-    model: MODEL,
+    model,
     max_tokens: 16000,
     ...FALLBACK,
     output_config: { effort: "low", format: betaZodOutputFormat(SuggestRoomResponseSchema) },
@@ -35,6 +36,7 @@ export async function suggestForRoom(req: SuggestRoomRequest): Promise<SuggestRo
     messages: [{ role: "user", content: lines.join("\n\n") }],
   });
 
+  logUsage("what's missing", msg);
   if (msg.stop_reason === "refusal") throw new AiError(422, "Claude declined this request.");
   if (!msg.parsed_output) throw new AiError(502, "Claude's suggestions came back in an unexpected format. Try again.");
   return msg.parsed_output;

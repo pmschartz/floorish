@@ -156,7 +156,7 @@ function RoomInspector({ room }: { room: Room }) {
       <RoomPaintPanel room={room} />
       <button className="danger" onClick={() => removeRoom(room.id)}>Delete room</button>
       <RoomDesignPanel room={room} />
-      <RoomSuggestPanel room={room} />
+      <RoomSuggestPanel key={room.id} room={room} />
     </div>
   );
 }

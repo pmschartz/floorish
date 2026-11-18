@@ -2,7 +2,7 @@ import type Anthropic from "@anthropic-ai/sdk";
 import { z } from "zod";
 import { scoreFit } from "../../shared/fit";
 import { ProductSchema, type ShopRequest, type ShopResults } from "../../shared/schemas";
-import { AiError, anthropic, FALLBACK, MODEL } from "./client";
+import { AiError, anthropic, FALLBACK, logUsage, MODEL } from "./client";
 import { describeEntry } from "../../shared/sw";
 
 type Param = Anthropic.Beta.BetaMessageParam;
@@ -100,11 +100,15 @@ export async function shopForItem(req: ShopRequest): Promise<ShopResults> {
         max_tokens: 64000,
         ...FALLBACK,
         output_config: { effort: "medium" },
-        system: SYSTEM,
-        tools: [{ type: "web_search_20260209", name: "web_search", max_uses: 8 }, REPORT_TOOL],
+        // System + tools are the same for every search: cache them. The top-level marker also caches
+        // the conversation so far, so continuation rounds re-read the search results at the cache price.
+        system: [{ type: "text", text: SYSTEM, cache_control: { type: "ephemeral" } }],
+        cache_control: { type: "ephemeral" },
+        tools: [{ type: "web_search_20260209", name: "web_search", max_uses: 5 }, REPORT_TOOL],
         messages,
       })
       .finalMessage();
+    logUsage(`shop round ${round + 1}`, msg);
 
     if (msg.stop_reason === "refusal") {
       throw new AiError(422, "Claude declined this search. Try rewording the label or notes.");

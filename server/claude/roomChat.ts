@@ -1,7 +1,7 @@
 import { betaZodOutputFormat } from "@anthropic-ai/sdk/helpers/beta/zod";
 import type Anthropic from "@anthropic-ai/sdk";
 import { RoomChatResponseSchema, type RoomChatRequest, type RoomChatResponse } from "../../shared/schemas";
-import { AiError, anthropic, FALLBACK, MODEL } from "./client";
+import { AiError, anthropic, FALLBACK, logUsage, MODEL } from "./client";
 import { catalogText, describeRoom, FENG_SHUI_RULES, ROOM_DESIGN_RULES } from "./roomPrompt";
 
 const SYSTEM = `You are an interior designer chatting with a homeowner about one room of their house, inside a floor-planning app.
@@ -23,15 +23,24 @@ Catalog (key: name, default size):
 ${catalogText()}`;
 
 export async function roomChat(req: RoomChatRequest): Promise<RoomChatResponse> {
+  const history: Anthropic.Beta.BetaMessageParam[] = req.history.map((m) => ({ role: m.role, content: [{ type: "text", text: m.text }] }));
+  // The API needs the conversation to start with the user.
+  while (history.length && history[0].role !== "user") history.shift();
+  // Cache the conversation up to the last reply: next turn re-reads it at the cache price. The new
+  // message (with a fresh description of the room) comes after the marker, since it changes every turn.
+  const last = history.at(-1);
+  if (last && Array.isArray(last.content)) {
+    const block = last.content.at(-1) as Anthropic.Beta.BetaTextBlockParam;
+    block.cache_control = { type: "ephemeral" };
+  }
   const messages: Anthropic.Beta.BetaMessageParam[] = [
-    ...req.history.map((m) => ({ role: m.role, content: m.text })),
+    ...history,
     {
       role: "user",
       content: `${describeRoom(req.context)}\n\n(Version shown: "${req.versionName}".)\n\n${req.message}`,
     },
   ];
-  // The API needs the conversation to start with the user.
-  while (messages.length && messages[0].role !== "user") messages.shift();
+  while (messages[0].role !== "user") messages.shift();
 
   const msg = await anthropic()
     .beta.messages.stream({
@@ -39,10 +48,11 @@ export async function roomChat(req: RoomChatRequest): Promise<RoomChatResponse> 
       max_tokens: 32000,
       ...FALLBACK,
       output_config: { effort: "medium", format: betaZodOutputFormat(RoomChatResponseSchema) },
-      system: SYSTEM,
+      system: [{ type: "text", text: SYSTEM, cache_control: { type: "ephemeral" } }],
       messages,
     })
     .finalMessage();
+  logUsage("room chat", msg);
 
   if (msg.stop_reason === "refusal") throw new AiError(422, "Claude declined this request.");
   if (msg.stop_reason === "max_tokens") throw new AiError(502, "The answer was cut off. Try a narrower question.");

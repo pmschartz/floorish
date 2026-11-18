@@ -83,6 +83,34 @@ export const RoomVersionSchema = z.object({
 });
 export type RoomVersion = z.infer<typeof RoomVersionSchema>;
 
+export const SuggestionSchema = z.object({
+  category: z.string(),
+  label: z.string(),
+  widthIn: z.number(),
+  depthIn: z.number(),
+  reason: z.string(),
+  placementHint: z.string(),
+  priority: z.enum(["essential", "recommended", "nice-to-have"]),
+});
+export type Suggestion = z.infer<typeof SuggestionSchema>;
+
+export const SuggestRoomResponseSchema = z.object({
+  summary: z.string(),
+  suggestions: z.array(SuggestionSchema),
+});
+export type SuggestRoomResponse = z.infer<typeof SuggestRoomResponseSchema>;
+
+/** The last "What's missing" answer for a room, kept with the plan so it isn't asked again. */
+export const SavedSuggestionsSchema = z.object({
+  askedAt: z.string(),
+  /** Fingerprint of what Claude was told (room, furniture, style, paint), to tell when it's out of date. */
+  basis: z.string(),
+  response: SuggestRoomResponseSchema,
+  /** Indexes of suggestions already added to the plan. */
+  added: z.array(z.number()).default([]),
+});
+export type SavedSuggestions = z.infer<typeof SavedSuggestionsSchema>;
+
 const SwRefSchema = z.string().transform(toSwRef);
 
 /** A room's paint, as Sherwin-Williams references ("SW 7008"). */
@@ -111,8 +139,17 @@ export const RoomSchema = z.object({
   versions: z.array(RoomVersionSchema).optional(),
   activeVersionId: z.string().nullable().optional(),
   paint: RoomPaintSchema.optional(),
+  suggestions: SavedSuggestionsSchema.optional(),
+  /** The room's chat with Claude, kept with the plan (newest last). */
+  chat: z.array(z.object({
+    role: z.enum(["user", "assistant"]),
+    text: z.string(),
+    changed: z.array(z.string()).default([]),
+    at: z.string().default(""),
+  })).optional(),
 });
 export type Room = z.infer<typeof RoomSchema>;
+export type ChatMessage = NonNullable<Room["chat"]>[number];
 
 export const STYLE_OPTIONS = [
   "Mid-century modern",
@@ -176,16 +213,6 @@ export const ShopRequestSchema = z.object({
 });
 export type ShopRequest = z.infer<typeof ShopRequestSchema>;
 
-export const SuggestionSchema = z.object({
-  category: z.string(),
-  label: z.string(),
-  widthIn: z.number(),
-  depthIn: z.number(),
-  reason: z.string(),
-  placementHint: z.string(),
-  priority: z.enum(["essential", "recommended", "nice-to-have"]),
-});
-export type Suggestion = z.infer<typeof SuggestionSchema>;
 
 export const SuggestRoomRequestSchema = z.object({
   room: z.object({
@@ -210,11 +237,6 @@ export const SuggestRoomRequestSchema = z.object({
 });
 export type SuggestRoomRequest = z.infer<typeof SuggestRoomRequestSchema>;
 
-export const SuggestRoomResponseSchema = z.object({
-  summary: z.string(),
-  suggestions: z.array(SuggestionSchema),
-});
-export type SuggestRoomResponse = z.infer<typeof SuggestRoomResponseSchema>;
 
 export function emptyStyle(): StyleProfile {
   return { styles: [], palette: [], avoid: "", budgetNote: "" };
@@ -268,6 +290,8 @@ export const DetectRequestSchema = z.object({
   mediaType: z.enum(["image/png", "image/jpeg", "image/webp"]),
   width: z.number().int().positive(),
   height: z.number().int().positive(),
+  /** Ask Claude again even if this exact image was read before. */
+  force: z.boolean().default(false),
 });
 export type DetectRequest = z.infer<typeof DetectRequestSchema>;
 
@@ -330,6 +354,8 @@ export const RedesignRequestSchema = z.object({
   keepIds: z.array(z.string()),
   principles: z.array(z.string()),
   count: z.number().int().min(1).max(3),
+  /** Ask Claude again even if this exact request was answered before. */
+  force: z.boolean().default(false),
 });
 export type RedesignRequest = z.infer<typeof RedesignRequestSchema>;
 
@@ -360,3 +386,13 @@ export const RoomChatResponseSchema = z.object({
   })),
 });
 export type RoomChatResponse = z.infer<typeof RoomChatResponseSchema>;
+
+/** What the app has spent on Claude, at list price. */
+export const SpendSummarySchema = z.object({
+  today: z.number(),
+  plan: z.number(),
+  total: z.number(),
+  calls: z.number(),
+  byKind: z.array(z.object({ kind: z.string(), cost: z.number(), calls: z.number() })),
+});
+export type SpendSummary = z.infer<typeof SpendSummarySchema>;

@@ -1,6 +1,6 @@
 import { betaZodOutputFormat } from "@anthropic-ai/sdk/helpers/beta/zod";
 import { RawDetectionSchema, type DetectRequest, type RawDetection } from "../../shared/schemas";
-import { AiError, anthropic, FALLBACK, MODEL } from "./client";
+import { AiError, anthropic, FALLBACK, logUsage, MODEL } from "./client";
 
 const SYSTEM = `You read architectural floor plan images and return their layout as data for a home-planning app.
 All coordinates are in pixels of the image you are given, origin at the top-left, x to the right, y down.
@@ -53,6 +53,7 @@ export async function detectFloorPlan(req: DetectRequest): Promise<RawDetection>
       ],
     })
     .finalMessage();
+  logUsage("auto-detect", msg);
 
   if (msg.stop_reason === "refusal") throw new AiError(422, "Claude declined to read this image.");
   if (msg.stop_reason === "max_tokens") throw new AiError(502, "The floor plan was too detailed to finish reading. Try again.");

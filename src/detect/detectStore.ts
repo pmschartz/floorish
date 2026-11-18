@@ -17,7 +17,9 @@ interface DetectState {
   keepOpenings: boolean;
   keepFixtures: boolean;
   replace: boolean;
-  start: () => Promise<void>;
+  /** The server returned its saved reading of this same image (no charge). */
+  reused: boolean;
+  start: (force?: boolean) => Promise<void>;
   cancel: () => void;
   apply: () => void;
   set: (patch: Partial<DetectState>) => void;
@@ -37,10 +39,11 @@ export const useDetect = create<DetectState>((set, get) => ({
   keepOpenings: true,
   keepFixtures: true,
   replace: true,
+  reused: false,
 
   set: (patch) => set(patch),
 
-  start: async () => {
+  start: async (force = false) => {
     const plan = usePlan.getState().plan;
     if (!plan?.image) return;
     controller?.abort();
@@ -50,8 +53,8 @@ export const useDetect = create<DetectState>((set, get) => ({
     try {
       const img = await preparePlanImage(plan.image.url);
       set({ step: "Claude is reading the floor plan…" });
-      const raw = await api.detect(
-        { image: img.forClaude.base64, mediaType: img.forClaude.mediaType, width: img.forClaude.width, height: img.forClaude.height },
+      const { data: raw, reused } = await api.detect(
+        { image: img.forClaude.base64, mediaType: img.forClaude.mediaType, width: img.forClaude.width, height: img.forClaude.height, force },
         signal,
       );
       if (signal.aborted) return;
@@ -72,6 +75,7 @@ export const useDetect = create<DetectState>((set, get) => ({
         keepOpenings: true,
         keepFixtures: true,
         replace: hasExisting,
+        reused,
       });
     } catch (e) {
       if (signal.aborted) return;

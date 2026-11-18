@@ -12,9 +12,10 @@ import { ChecksPanel } from "./panels/ChecksPanel";
 import { InspectorPanel } from "./panels/InspectorPanel";
 import { LibraryPanel } from "./panels/LibraryPanel";
 import { StylePanel } from "./panels/StylePanel";
+import { SpendMeter } from "./panels/SpendMeter";
 import { DetectPanel } from "./panels/DetectPanel";
 import { useDetect } from "./detect/detectStore";
-import { effectivePpi, flushSave, GRID_PPI, usePlan, type Tool } from "./state/planStore";
+import { effectivePpi, flushSave, GRID_PPI, usePlan, type Tool, redo, undo } from "./state/planStore";
 
 function useHashRoute(): string | null {
   const [id, setId] = useState(planIdFromHash);
@@ -235,8 +236,8 @@ function Toolbar() {
         </button>
       </div>
       <div className="tool-group">
-        <button disabled={!canUndo} title="Undo (⌘Z)" onClick={() => usePlan.temporal.getState().undo()}>Undo</button>
-        <button disabled={!canRedo} title="Redo (⇧⌘Z)" onClick={() => usePlan.temporal.getState().redo()}>Redo</button>
+        <button disabled={!canUndo} title="Undo (⌘Z)" onClick={undo}>Undo</button>
+        <button disabled={!canRedo} title="Redo (⇧⌘Z)" onClick={redo}>Redo</button>
       </div>
       <div className="tool-group">
         <button onClick={() => setUnits(units === "imperial" ? "metric" : "imperial")} title="Switch units">
@@ -251,6 +252,7 @@ function Toolbar() {
             e.target.value = "";
             if (f) void upload(f);
           }} />
+        <SpendMeter />
         <details className="menu">
           <summary>Export</summary>
           <div className="menu-items" onClick={(e) => (e.currentTarget.parentElement as HTMLDetailsElement).removeAttribute("open")}>
@@ -337,13 +339,13 @@ function useGlobalShortcuts() {
 
       if (mod && k === "z") {
         e.preventDefault();
-        if (e.shiftKey) usePlan.temporal.getState().redo();
-        else usePlan.temporal.getState().undo();
+        if (e.shiftKey) redo();
+        else undo();
         return;
       }
       if (mod && k === "y") {
         e.preventDefault();
-        usePlan.temporal.getState().redo();
+        redo();
         return;
       }
       const sel = s.plan?.items.find((i) => i.id === s.selectedItemId);

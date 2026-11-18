@@ -135,6 +135,12 @@ export function DetectPanel() {
           (off {[...new Set(p.orphanDoorsNear)].join(", ")}). A room outline is probably missing a corner there; try Auto-detect again, or untick that room and trace it yourself.
         </p>
       )}
+      {s.reused && (
+        <p className="muted small">
+          Claude has read this image before, so this is that saved reading (no charge).{" "}
+          <button className="link" onClick={() => void s.start(true)}>Read it again</button> (costs a new call).
+        </p>
+      )}
       {p.notes && <p className="muted small">Claude's note: {p.notes}</p>}
 
       <div className="row">

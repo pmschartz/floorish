@@ -2,7 +2,7 @@ import { nanoid } from "nanoid";
 import { temporal } from "zundo";
 import { create } from "zustand";
 import type { Item, Plan, Point, Room, StyleProfile } from "../../shared/schemas";
-import { api } from "../api/client";
+import { api, setApiPlan } from "../api/client";
 import type { CatalogEntry } from "../catalog/furniture";
 import type { UnitSystem } from "../model/units";
 
@@ -97,11 +97,13 @@ export const usePlan = create<PlanState>()(
           get().setPlan(plan);
         },
         setPlan: (plan) => {
+          setApiPlan(plan.id);
           set({ plan, selectedItemId: null, selectedRoomId: null, tool: "select", saveStatus: "saved" });
           usePlan.temporal.getState().clear();
           lastSaved = JSON.stringify(plan);
         },
         closePlan: () => {
+          setApiPlan("");
           set({ plan: null, selectedItemId: null, selectedRoomId: null });
           usePlan.temporal.getState().clear();
         },
@@ -250,16 +252,70 @@ usePlan.subscribe((s, prev) => {
   timer = setTimeout(flush, 600);
 });
 
-// Warn before closing the tab if the last edit hasn't reached the server yet.
-window.addEventListener("beforeunload", (e) => {
-  const plan = usePlan.getState().plan;
-  if (plan && JSON.stringify(plan) !== lastSaved) {
-    void flush();
-    e.preventDefault();
-  }
-});
+// Warn before closing the tab if the last edit hasn't reached the server yet. (Not in tests.)
+if (typeof window !== "undefined") {
+  window.addEventListener("beforeunload", (e) => {
+    const plan = usePlan.getState().plan;
+    if (plan && JSON.stringify(plan) !== lastSaved) {
+      void flush();
+      e.preventDefault();
+    }
+  });
+}
 
 export function flushSave() {
   clearTimeout(timer);
   return flush();
 }
+
+// ---- Claude's answers survive Undo and Redo ----
+// Room chats, What's missing answers and shop results were paid for, so stepping back through
+// your edits never throws them away, and saving one doesn't add an Undo step.
+
+interface Sticky {
+  rooms: Map<string, Pick<Room, "chat" | "suggestions">>;
+  items: Map<string, Item["shopResults"]>;
+}
+
+function stickyOf(plan: Plan): Sticky {
+  return {
+    rooms: new Map(plan.rooms.map((r) => [r.id, { chat: r.chat, suggestions: r.suggestions }])),
+    items: new Map(plan.items.filter((i) => i.shopResults).map((i) => [i.id, i.shopResults])),
+  };
+}
+
+function withSticky(plan: Plan, s: Sticky): Plan {
+  return {
+    ...plan,
+    rooms: plan.rooms.map((r) => (s.rooms.has(r.id) ? { ...r, ...s.rooms.get(r.id) } : r)),
+    items: plan.items.map((i) => (s.items.has(i.id) ? { ...i, shopResults: s.items.get(i.id) ?? null } : i)),
+  };
+}
+
+function step(dir: "undo" | "redo") {
+  const before = usePlan.getState().plan;
+  const t = usePlan.temporal.getState();
+  if (dir === "undo") t.undo(); else t.redo();
+  const after = usePlan.getState().plan;
+  if (!before || !after) return;
+  t.pause();
+  usePlan.setState({ plan: withSticky(after, stickyOf(before)) });
+  t.resume();
+}
+
+export const undo = () => step("undo");
+export const redo = () => step("redo");
+
+/** Save one of Claude's answers into the plan without adding an Undo step. */
+export function keepResult(fn: (p: Plan) => Plan) {
+  const p = usePlan.getState().plan;
+  if (!p) return;
+  const t = usePlan.temporal.getState();
+  t.pause();
+  usePlan.setState({ plan: fn(p) });
+  t.resume();
+}
+
+/** Patch one room's saved Claude answers (chat, What's missing). */
+export const keepRoomResult = (roomId: string, patch: Pick<Room, "chat"> | Pick<Room, "suggestions">) =>
+  keepResult((p) => ({ ...p, rooms: p.rooms.map((r) => (r.id === roomId ? { ...r, ...patch } : r)) }));

@@ -3,7 +3,7 @@ import path from "node:path";
 import { nanoid } from "nanoid";
 import { emptyStyle, PlanSchema, type Plan, type PlanSummary } from "../shared/schemas";
 
-const DATA_DIR = path.resolve(process.env.HOUSE_PLANNER_DATA ?? "data");
+export const DATA_DIR = path.resolve(process.env.HOUSE_PLANNER_DATA ?? "data");
 const PLANS_DIR = path.join(DATA_DIR, "plans");
 export const IMAGES_DIR = path.join(DATA_DIR, "images");
 
