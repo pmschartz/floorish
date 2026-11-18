@@ -10,7 +10,7 @@ import { effectivePpi, usePlan } from "../state/planStore";
 import { CalibrateDialog } from "./CalibrateTool";
 import { canvasApi, DRAG_MIME } from "./canvasApi";
 import { FurnitureShape } from "./FurnitureShape";
-import { CleanRoomLayer, DraftPath, RoomLayer } from "./RoomLayer";
+import { CleanRoomLayer, DraftPath, PaintBands, RoomLayer } from "./RoomLayer";
 import { DetectionPreview } from "./DetectionPreview";
 import { RoomLabels } from "./RoomLabels";
 import { useDetect } from "../detect/detectStore";
@@ -341,6 +341,7 @@ export function PlanCanvas({ issues }: { issues: Issue[] }) {
             <CleanRoomLayer rooms={shownRooms} ppi={ppi} stageScale={s} units={units} selectedRoomId={selectedRoomId}
               interactive={tool === "select"} onSelect={(id) => select({ room: id })} wallThickness={plan.wallThickness} />
           )}
+          {ppi && <PaintBands rooms={shownRooms} ppi={ppi} stageScale={s} />}
         </Layer>
         <Layer>
           {ppi && selected && !PASSIVE_CATEGORIES.has(selected.category) && (

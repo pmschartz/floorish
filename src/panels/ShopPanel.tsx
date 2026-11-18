@@ -5,6 +5,7 @@ import { api } from "../api/client";
 import { roomFor } from "../checks/layoutChecks";
 import { formatDims, formatLength } from "../model/units";
 import { usePlan } from "../state/planStore";
+import { describePaint } from "../../shared/sw";
 
 // Searches keep running (and save their results) even if you select something else.
 const useShopJobs = create<{ running: Record<string, true>; errors: Record<string, string> }>(() => ({
@@ -30,6 +31,7 @@ async function runSearch(item: Item, opts: { under: number; over: number; maxPri
       maxPrice: opts.maxPrice,
       notes,
       roomType: room?.type ?? null,
+      roomPaint: describePaint(room?.paint),
       style: plan.style,
     });
     // The item may have been deleted while the search ran.

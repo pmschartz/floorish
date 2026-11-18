@@ -1,5 +1,6 @@
 import { useMemo } from "react";
-import { Group, Rect, Text } from "react-konva";
+import { Circle, Group, Rect, Text } from "react-konva";
+import { entryHex } from "../../shared/sw";
 import type { Item, Room } from "../../shared/schemas";
 import { PASSIVE_CATEGORIES } from "../catalog/furniture";
 import { bbox, itemCorners, polygonArea } from "../model/geometry";
@@ -8,7 +9,7 @@ import { formatArea, formatLength, type UnitSystem } from "../model/units";
 
 const HUES = [210, 150, 30, 280, 0, 180, 60, 330];
 
-const NAME_PX = 13, DIMS_PX = 11, PAD_PX = 5;
+const NAME_PX = 13, DIMS_PX = 11, PAD_PX = 5, DOT_PX = 11, DOT_GAP = 5;
 /** Rough text width in screen px, good enough for placing (system UI font). */
 const textW = (s: string, px: number, bold = false) => s.length * px * (bold ? 0.6 : 0.55);
 
@@ -37,11 +38,12 @@ export function RoomLabels({ rooms, items, ppi, stageScale, units, clean, select
     const pxToIn = 1 / (ppi * stageScale); // screen px → plan inches
     return rooms.map((room, idx) => {
       const b = bbox(room.polygon);
+      const dot = room.paint?.walls ? DOT_PX + DOT_GAP : 0; // wall-color swatch before the name
       const dims = clean
         ? `${formatLength(b.width, units)} × ${formatLength(b.height, units)}`
         : `${formatArea(polygonArea(room.polygon), units)} · ${formatLength(b.width, units)} × ${formatLength(b.height, units)}`;
       const full = {
-        w: Math.max(textW(room.name, NAME_PX, true), textW(dims, DIMS_PX)) + PAD_PX * 2,
+        w: Math.max(textW(room.name, NAME_PX, true), textW(dims, DIMS_PX)) + PAD_PX * 2 + dot,
         h: NAME_PX + DIMS_PX + PAD_PX * 2 + 3,
       };
       let showDims = true;
@@ -50,17 +52,17 @@ export function RoomLabels({ rooms, items, ppi, stageScale, units, clean, select
       if (!placed.fits) {
         // Too small at this zoom for two lines: just the name.
         showDims = false;
-        size = { w: textW(room.name, NAME_PX, true) + PAD_PX * 2, h: NAME_PX + PAD_PX * 2 };
+        size = { w: textW(room.name, NAME_PX, true) + PAD_PX * 2 + dot, h: NAME_PX + PAD_PX * 2 };
         placed = placeLabel(room.polygon, obstacles, size.w * pxToIn, size.h * pxToIn);
       }
-      return { room, idx, dims, showDims, size, at: placed.at, fits: placed.fits };
+      return { room, idx, dims, showDims, size, dot, at: placed.at, fits: placed.fits };
     });
   }, [rooms, obstacles, ppi, stageScale, units, clean]);
 
   const s = stageScale;
   return (
     <Group listening={false}>
-      {labels.map(({ room, idx, dims, showDims, size, at, fits }) => {
+      {labels.map(({ room, idx, dims, showDims, size, dot, at, fits }) => {
         const hue = HUES[idx % HUES.length];
         const selected = room.id === selectedRoomId;
         const w = size.w / s, h = size.h / s;
@@ -73,10 +75,14 @@ export function RoomLabels({ rooms, items, ppi, stageScale, units, clean, select
               fill={clean ? "rgba(255,255,255,0.78)" : "rgba(255,255,255,0.85)"}
               stroke={selected ? "#2f6f5e" : "rgba(0,0,0,0.08)"} strokeWidth={(selected ? 1.5 : 1) / s}
               shadowColor="#000" shadowOpacity={0.12} shadowBlur={4 / s} shadowOffsetY={1 / s} />
-            <Text text={room.name} x={x} y={y + PAD_PX / s} width={w} align="center" fontSize={NAME_PX / s}
+            {dot > 0 && (
+              <Circle x={x + (PAD_PX + DOT_PX / 2) / s} y={y + (PAD_PX + NAME_PX / 2) / s} radius={DOT_PX / 2 / s}
+                fill={entryHex(room.paint!.walls!)} stroke="rgba(0,0,0,0.25)" strokeWidth={1 / s} />
+            )}
+            <Text text={room.name} x={x + dot / s} y={y + PAD_PX / s} width={w - dot / s} align="center" fontSize={NAME_PX / s}
               fontStyle="bold" fill={ink} wrap="none" />
             {showDims && (
-              <Text text={dims} x={x} y={y + (PAD_PX + NAME_PX + 3) / s} width={w} align="center" fontSize={DIMS_PX / s}
+              <Text text={dims} x={x + dot / s} y={y + (PAD_PX + NAME_PX + 3) / s} width={w - dot / s} align="center" fontSize={DIMS_PX / s}
                 fill={clean ? "#55524d" : ink} wrap="none" />
             )}
           </Group>

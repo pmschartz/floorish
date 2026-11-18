@@ -77,6 +77,7 @@ function describe(req: ShopRequest): string {
     `Space on the plan: ${req.width}" wide × ${req.depth}" deep${req.height ? ` × up to ${req.height}" tall` : ""}.`,
     `Acceptable size: up to ${req.toleranceOver}" larger, ideally no more than ${req.toleranceUnder}" smaller in each direction.`,
     req.roomType ? `Room: ${req.roomType}` : "",
+    req.roomPaint ? `The room is painted: ${req.roomPaint}. Pick products whose colors and finishes work with these walls.` : "",
     s.styles.length ? `Style: ${s.styles.join(", ")}` : "Style: no preference given",
     s.palette.length ? `Color palette (Sherwin-Williams paint colors): ${s.palette.map((c) => describeEntry(c)).join("; ")}` : "",
     s.avoid ? `Avoid: ${s.avoid}` : "",

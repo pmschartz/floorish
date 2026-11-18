@@ -7,6 +7,7 @@ import { findOpenSpot } from "../checks/placement";
 import { bbox, polygonArea } from "../model/geometry";
 import { formatDims } from "../model/units";
 import { usePlan } from "../state/planStore";
+import { describePaint } from "../../shared/sw";
 
 // Remember the last answer per room for this session so switching rooms doesn't lose it.
 const cache = new Map<string, SuggestRoomResponse>();
@@ -32,6 +33,7 @@ export function RoomSuggestPanel({ room }: { room: Room }) {
           widthIn: b.width,
           depthIn: b.height,
           areaSqFt: Math.round(polygonArea(room.polygon) / 144),
+          paint: describePaint(room.paint),
         },
         items: inRoom.map((i) => ({
           label: i.label || i.category || "unlabeled",

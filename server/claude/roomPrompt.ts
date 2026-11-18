@@ -49,8 +49,9 @@ export function describeRoom(c: RoomContext): string {
     c.furniture.length
       ? `Furniture there now:\n${c.furniture.map((f) => `- [${f.id}] ${f.label} (${f.category}) at ${pt(f)}, ${f.width}" W × ${f.depth}" D, rotation ${f.rotation}, ${f.status}`).join("\n")}`
       : "The room is empty.",
-    c.neighbors.length ? `Next to: ${c.neighbors.map((n) => `${n.name} (${n.type}) on the ${n.side}`).join(", ")}` : "",
-    `Whole house: ${c.house.map((h) => `${h.name} (${h.type}, ${h.areaSqFt} sq ft)`).join(", ")}`,
+    c.room.paint ? `This room's paint (Sherwin-Williams; design around it, refer to colors by SW number and name): ${c.room.paint}` : "This room's wall color isn't recorded.",
+    c.neighbors.length ? `Next to: ${c.neighbors.map((n) => `${n.name} (${n.type}) on the ${n.side}${n.paint ? `, painted ${n.paint}` : ""}`).join(", ")}` : "",
+    `Whole house: ${c.house.map((h) => `${h.name} (${h.type}, ${h.areaSqFt} sq ft${h.paint ? `; ${h.paint}` : ""})`).join(", ")}`,
     c.style.styles.length ? `Style: ${c.style.styles.join(", ")}` : "Style: not chosen",
     c.style.palette.length ? `Palette (Sherwin-Williams paint colors; refer to them by SW number and name, not hex): ${c.style.palette.map((p) => describeEntry(p)).join("; ")}` : "",
     c.style.avoid ? `Avoid: ${c.style.avoid}` : "",

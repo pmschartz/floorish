@@ -1,6 +1,7 @@
 import { Circle, Group, Line } from "react-konva";
 import type { Point, Room } from "../../shared/schemas";
 import type { UnitSystem } from "../model/units";
+import { paintSegments } from "../model/paint";
 
 const HUES = [210, 150, 30, 280, 0, 180, 60, 330];
 
@@ -134,5 +135,21 @@ export function DraftPath({ points, hover, closed, stageScale, color }: {
           stroke={color} strokeWidth={1.5 / stageScale} />
       ))}
     </Group>
+  );
+}
+
+/** Each room's wall color as a strip along the inside of its walls (accent wall in its own color). */
+export function PaintBands({ rooms, ppi, stageScale }: { rooms: Room[]; ppi: number; stageScale: number }) {
+  // About 3" wide, but never thinner than 3 screen pixels.
+  const band = Math.max(3, 3 / (ppi * stageScale));
+  return (
+    <>
+      {rooms.flatMap((room) =>
+        paintSegments(room, band).map((seg, i) => (
+          <Line key={`paint-${room.id}-${i}`} points={seg.pts.map((v) => v * ppi)} stroke={seg.color}
+            strokeWidth={band * ppi} lineCap="square" listening={false} />
+        )),
+      )}
+    </>
   );
 }

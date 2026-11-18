@@ -2,6 +2,7 @@ import type { Item, Plan, PlacedItem, Point, Room, RoomChatResponse, RoomContext
 import { catalogEntry } from "../catalog/furniture";
 import { bbox, doorSwing, itemCorners, itemParts, partsOverlap, pointInPolygon, polygonArea, polygonInside, toWorld } from "./geometry";
 import { roomFurniture } from "./versions";
+import { describePaint } from "../../shared/sw";
 
 const r1 = (n: number) => Math.round(n * 10) / 10;
 
@@ -46,16 +47,16 @@ export function buildRoomContext(plan: Plan, room: Room): RoomContext {
     .filter(({ ob }) => ob.minX <= b.maxX + 14 && ob.maxX >= b.minX - 14 && ob.minY <= b.maxY + 14 && ob.maxY >= b.minY - 14)
     .map(({ o, ob }) => {
       const side = ob.minX >= b.maxX - 14 ? "right" : ob.maxX <= b.minX + 14 ? "left" : ob.maxY <= b.minY + 14 ? "top" : ob.minY >= b.maxY - 14 ? "bottom" : "adjoining";
-      return { name: o.name, type: o.type, side };
+      return { name: o.name, type: o.type, side, paint: describePaint(o.paint) };
     });
 
   return {
-    room: { name: room.name, type: room.type, widthIn: r1(b.width), depthIn: r1(b.height), outline: room.polygon.map(loc), edges },
+    room: { name: room.name, type: room.type, widthIn: r1(b.width), depthIn: r1(b.height), outline: room.polygon.map(loc), edges, paint: describePaint(room.paint) },
     openings,
     fixtures: plan.items.filter((i) => i.shape === "fixture" && pointInPolygon({ x: i.x, y: i.y }, room.polygon, 0)).map(local),
     furniture: roomFurniture(plan.items, room).map((i) => ({ ...local(i), id: i.id, status: i.status })),
     neighbors,
-    house: plan.rooms.map((o) => ({ name: o.name, type: o.type, areaSqFt: Math.round(polygonArea(o.polygon) / 144) })),
+    house: plan.rooms.map((o) => ({ name: o.name, type: o.type, areaSqFt: Math.round(polygonArea(o.polygon) / 144), paint: describePaint(o.paint, false) })),
     style: plan.style,
   };
 }

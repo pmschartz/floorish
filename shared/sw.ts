@@ -125,3 +125,18 @@ export function describeEntry(entry: string, withHex = true): string {
   if (!c) return entry;
   return withHex ? `${swLabel(c)} (${c.hex})` : swLabel(c);
 }
+
+/** A room's paint in words, for people and for Claude. "" when nothing is set. */
+export function describePaint(
+  paint: { walls?: string | null; accent?: string | null; accentSide?: string | null; trim?: string | null; ceiling?: string | null } | undefined,
+  withHex = true,
+): string {
+  if (!paint) return "";
+  const d = (e: string) => describeEntry(e, withHex);
+  return [
+    paint.walls ? `walls ${d(paint.walls)}` : "",
+    paint.accent ? `accent wall${paint.accentSide ? ` (${paint.accentSide} wall on the plan)` : ""} ${d(paint.accent)}` : "",
+    paint.trim ? `trim ${d(paint.trim)}` : "",
+    paint.ceiling ? `ceiling ${d(paint.ceiling)}` : "",
+  ].filter(Boolean).join("; ");
+}

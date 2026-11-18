@@ -1,6 +1,6 @@
-import { useState } from "react";
 import { STYLE_OPTIONS, type StyleProfile } from "../../shared/schemas";
-import { describeEntry, entryHex, findSw, nearestSw, searchSw, swRef, type SwColor } from "../../shared/sw";
+import { describeEntry, describePaint, entryHex, findSw, swRef, type SwColor } from "../../shared/sw";
+import { SwDot, SwPicker } from "./SwPicker";
 import { suggestPalettes } from "../model/palette";
 import { usePlan } from "../state/planStore";
 
@@ -18,17 +18,14 @@ const MAX_COLORS = 6;
 export function StylePanel() {
   const style = usePlan((s) => s.plan!.style);
   const setStyle = usePlan((s) => s.setStyle);
-  const [query, setQuery] = useState("");
-  const [match, setMatch] = useState("#8f6a48");
+  const rooms = usePlan((s) => s.plan!.rooms);
+  const select = usePlan((s) => s.select);
   const set = (patch: Partial<StyleProfile>) => setStyle({ ...style, ...patch });
   const full = style.palette.length >= MAX_COLORS;
   const add = (c: SwColor) => {
     if (full || style.palette.includes(swRef(c))) return;
     set({ palette: [...style.palette, swRef(c)] });
-    setQuery("");
   };
-  const results = searchSw(query, 12);
-  const nearest = nearestSw(match);
 
   const toggleStyle = (s: string) =>
     set({ styles: style.styles.includes(s) ? style.styles.filter((x) => x !== s) : [...style.styles, s] });
@@ -63,32 +60,9 @@ export function StylePanel() {
         })}
         {style.palette.length === 0 && <span className="muted small">No colors yet.</span>}
       </div>
-      <div className="sw-search">
-        <input value={query} placeholder={full ? "Palette is full (6 colors)" : "Add a color: name or number, e.g. Alabaster or 7008"}
-          disabled={full} onChange={(e) => setQuery(e.target.value)} aria-label="Search Sherwin-Williams colors"
-          onKeyDown={(e) => { if (e.key === "Enter" && results[0]) add(results[0]); if (e.key === "Escape") setQuery(""); }} />
-        {query.trim() && (
-          <ul className="sw-results" role="listbox">
-            {results.map((c) => (
-              <li key={c.number}>
-                <button onClick={() => add(c)} disabled={style.palette.includes(swRef(c))}>
-                  <span className="sw-dot" style={{ background: c.hex }} />
-                  <span>SW {c.number} <strong>{c.name}</strong></span>
-                  <span className="muted small">{c.family || ""}{c.family ? " · " : ""}LRV {c.lrv}</span>
-                </button>
-              </li>
-            ))}
-            {results.length === 0 && <li className="muted small">No Sherwin-Williams color matches “{query}”.</li>}
-          </ul>
-        )}
-      </div>
-      <div className="row sw-match">
-        <input type="color" value={match} onChange={(e) => setMatch(e.target.value)} aria-label="Match a color to Sherwin-Williams" />
-        <span className="sw-dot" style={{ background: nearest.hex }} />
-        <span className="small">Closest: SW {nearest.number} {nearest.name}</span>
-        <button disabled={full || style.palette.includes(swRef(nearest))} onClick={() => add(nearest)}>Add</button>
-        {style.palette.length > 0 && <button className="link" onClick={() => set({ palette: [] })}>Clear</button>}
-      </div>
+      <SwPicker onPick={add} disabled={full} taken={style.palette}
+        placeholder={full ? "Palette is full (6 colors)" : "Add a color: name or number, e.g. Alabaster or 7008"} />
+      {style.palette.length > 0 && <button className="link" onClick={() => set({ palette: [] })}>Clear palette</button>}
       {(style.palette.length === 1 || style.palette.length === 2) && (
         <div className="palette-suggest">
           <p className="small">
@@ -123,6 +97,24 @@ export function StylePanel() {
           </button>
         ))}
       </div>
+
+      <h3>Wall colors by room</h3>
+      {rooms.length === 0 ? <p className="muted small">No rooms yet.</p> : (
+        <ul className="room-paint-list">
+          {rooms.map((r) => (
+            <li key={r.id}>
+              <button className="link" onClick={() => select({ room: r.id })}>{r.name}</button>
+              {r.paint?.walls ? (
+                <span className="room-paint-colors" title={describePaint(r.paint, false)}>
+                  {[r.paint.walls, r.paint.accent, r.paint.trim, r.paint.ceiling].filter((e): e is string => !!e).map((e, i) => <SwDot key={i} entry={e} size={16} />)}
+                  <span className="small">{describeEntry(r.paint.walls, false)}</span>
+                </span>
+              ) : <span className="muted small">Not set</span>}
+            </li>
+          ))}
+        </ul>
+      )}
+      <p className="muted small">Select a room to set its wall, accent, trim and ceiling colors.</p>
 
       <label className="field">
         <span>Avoid</span>

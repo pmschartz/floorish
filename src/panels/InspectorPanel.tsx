@@ -5,6 +5,7 @@ import { formatArea, formatLength } from "../model/units";
 import { effectivePpi, usePlan } from "../state/planStore";
 import { LengthInput } from "./LengthInput";
 import { RoomDesignPanel } from "./RoomDesignPanel";
+import { RoomPaintPanel } from "./RoomPaintPanel";
 import { RoomSuggestPanel } from "./RoomSuggestPanel";
 import { ShopPanel } from "./ShopPanel";
 
@@ -152,6 +153,7 @@ function RoomInspector({ room }: { room: Room }) {
         {formatArea(polygonArea(room.polygon), units)} · {formatLength(b.width, units)} × {formatLength(b.height, units)}
         {room.polygon.length !== 4 && <span className="muted"> (outer size)</span>}
       </p>
+      <RoomPaintPanel room={room} />
       <button className="danger" onClick={() => removeRoom(room.id)}>Delete room</button>
       <RoomDesignPanel room={room} />
       <RoomSuggestPanel room={room} />

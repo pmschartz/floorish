@@ -1,4 +1,5 @@
 import type { Plan } from "../../shared/schemas";
+import { describeEntry } from "../../shared/sw";
 import { canvasApi } from "../canvas/canvasApi";
 import { roomFor } from "../checks/layoutChecks";
 import { formatDims, type UnitSystem } from "./units";
@@ -50,10 +51,31 @@ function shoppingRows(plan: Plan, units: UnitSystem) {
     });
 }
 
+/** Each room's paint, one row per color (walls, accent wall, trim, ceiling). */
+export function paintRows(plan: Plan): Array<{ room: string; surface: string; color: string }> {
+  const rows: Array<{ room: string; surface: string; color: string }> = [];
+  for (const r of plan.rooms) {
+    const p = r.paint;
+    if (!p) continue;
+    if (p.walls) rows.push({ room: r.name, surface: "Walls", color: describeEntry(p.walls, false) });
+    if (p.accent) rows.push({ room: r.name, surface: `Accent wall${p.accentSide ? ` (${p.accentSide} on the plan)` : ""}`, color: describeEntry(p.accent, false) });
+    if (p.trim) rows.push({ room: r.name, surface: "Trim", color: describeEntry(p.trim, false) });
+    if (p.ceiling) rows.push({ room: r.name, surface: "Ceiling", color: describeEntry(p.ceiling, false) });
+  }
+  return rows;
+}
+
 export function exportShoppingMarkdown(plan: Plan, units: UnitSystem) {
   const rows = shoppingRows(plan, units);
   const lines = [`# Shopping list: ${plan.name}`, ""];
   if (plan.style.styles.length) lines.push(`Style: ${plan.style.styles.join(", ")}`, "");
+  if (plan.style.palette.length) lines.push(`House palette: ${plan.style.palette.map((c) => describeEntry(c, false)).join(", ")}`, "");
+  const paint = paintRows(plan);
+  if (paint.length) {
+    lines.push("## Paint (Sherwin-Williams)", "", "| Room | Surface | Color |", "| --- | --- | --- |");
+    for (const p of paint) lines.push(`| ${p.room} | ${p.surface} | ${p.color} |`);
+    lines.push("");
+  }
   for (const r of rows) {
     lines.push(`## ${r.item}${r.room ? ` (${r.room})` : ""}`, `- Size: ${r.size}`);
     if (r.notes) lines.push(`- Notes: ${r.notes}`);
@@ -70,6 +92,9 @@ export function exportShoppingMarkdown(plan: Plan, units: UnitSystem) {
 export function exportShoppingCsv(plan: Plan, units: UnitSystem) {
   const esc = (v: unknown) => `"${String(v ?? "").replace(/"/g, '""')}"`;
   const out = [["Item", "Category", "Room", "Size", "Notes", "Product", "Retailer", "Price", "Fit", "URL"].map(esc).join(",")];
+  for (const p of paintRows(plan)) {
+    out.push([`${p.surface} paint`, "paint", p.room, "", "", p.color, "Sherwin-Williams", "", "", ""].map(esc).join(","));
+  }
   for (const r of shoppingRows(plan, units)) {
     if (!r.picks.length) out.push([r.item, r.category, r.room, r.size, r.notes, "", "", "", "", ""].map(esc).join(","));
     for (const p of r.picks) {

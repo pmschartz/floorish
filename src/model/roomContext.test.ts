@@ -33,7 +33,7 @@ describe("buildRoomContext", () => {
     expect(c.furniture).toEqual([expect.objectContaining({ id: "desk", x: 60, y: 70 })]);
     expect(c.openings).toEqual([expect.objectContaining({ kind: "door", side: "top", x: 30, swingsInto: "room" })]);
     expect(c.fixtures).toEqual([]); // the toilet is in the bedroom
-    expect(c.neighbors).toEqual([{ name: "Bedroom", type: "bedroom", side: "right" }]);
+    expect(c.neighbors).toEqual([{ name: "Bedroom", type: "bedroom", side: "right", paint: "" }]);
   });
 });
 

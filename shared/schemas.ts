@@ -83,6 +83,20 @@ export const RoomVersionSchema = z.object({
 });
 export type RoomVersion = z.infer<typeof RoomVersionSchema>;
 
+const SwRefSchema = z.string().transform(toSwRef);
+
+/** A room's paint, as Sherwin-Williams references ("SW 7008"). */
+export const RoomPaintSchema = z.object({
+  walls: SwRefSchema.nullable().default(null),
+  accent: SwRefSchema.nullable().default(null),
+  /** Which wall gets the accent color, as seen on the plan. */
+  accentSide: z.enum(["top", "bottom", "left", "right"]).nullable().default(null),
+  trim: SwRefSchema.nullable().default(null),
+  ceiling: SwRefSchema.nullable().default(null),
+});
+export type RoomPaint = z.infer<typeof RoomPaintSchema>;
+export const WALL_SIDES = ["top", "bottom", "left", "right"] as const;
+
 export const RoomSchema = z.object({
   id: z.string(),
   name: z.string(),
@@ -96,6 +110,7 @@ export const RoomSchema = z.object({
   walls: z.array(z.number().nullable()).optional(),
   versions: z.array(RoomVersionSchema).optional(),
   activeVersionId: z.string().nullable().optional(),
+  paint: RoomPaintSchema.optional(),
 });
 export type Room = z.infer<typeof RoomSchema>;
 
@@ -155,6 +170,8 @@ export const ShopRequestSchema = z.object({
   maxPrice: z.number().positive().nullable().default(null),
   notes: z.string().default(""),
   roomType: z.string().nullable().default(null),
+  /** The room's paint, described ("walls SW 7008 Alabaster (#edeae0); …"), or "". */
+  roomPaint: z.string().default(""),
   style: StyleProfileSchema,
 });
 export type ShopRequest = z.infer<typeof ShopRequestSchema>;
@@ -177,6 +194,7 @@ export const SuggestRoomRequestSchema = z.object({
     widthIn: z.number(),
     depthIn: z.number(),
     areaSqFt: z.number(),
+    paint: z.string().default(""),
   }),
   items: z.array(
     z.object({
@@ -276,6 +294,7 @@ export const RoomContextSchema = z.object({
     depthIn: z.number(),
     outline: z.array(PointSchema),
     edges: z.array(z.object({ side: z.string(), from: PointSchema, to: PointSchema, wall: z.boolean() })),
+    paint: z.string().default(""),
   }),
   openings: z.array(z.object({
     kind: z.string(), label: z.string(), side: z.string(), x: z.number(), y: z.number(), width: z.number(),
@@ -283,8 +302,8 @@ export const RoomContextSchema = z.object({
   })),
   fixtures: z.array(LocalItem),
   furniture: z.array(LocalItem.extend({ id: z.string(), status: z.string() })),
-  neighbors: z.array(z.object({ name: z.string(), type: z.string(), side: z.string() })),
-  house: z.array(z.object({ name: z.string(), type: z.string(), areaSqFt: z.number() })),
+  neighbors: z.array(z.object({ name: z.string(), type: z.string(), side: z.string(), paint: z.string().default("") })),
+  house: z.array(z.object({ name: z.string(), type: z.string(), areaSqFt: z.number(), paint: z.string().default("") })),
   style: StyleProfileSchema,
 });
 export type RoomContext = z.infer<typeof RoomContextSchema>;

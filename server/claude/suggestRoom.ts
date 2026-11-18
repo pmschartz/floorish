@@ -19,6 +19,7 @@ export async function suggestForRoom(req: SuggestRoomRequest): Promise<SuggestRo
     req.items.length
       ? `Currently in the room:\n${req.items.map((i) => `- ${i.label} (${i.category || "uncategorized"}, ${Math.round(i.widthIn)}" × ${Math.round(i.depthIn)}", ${i.status}) at ${i.position}`).join("\n")}`
       : "The room is empty.",
+    req.room.paint ? `Paint (Sherwin-Williams): ${req.room.paint}` : "Wall color: not recorded.",
     s.styles.length ? `Style: ${s.styles.join(", ")}` : "",
     s.palette.length ? `Palette (Sherwin-Williams paint colors): ${s.palette.map((c) => describeEntry(c)).join("; ")}` : "",
     s.avoid ? `Avoid: ${s.avoid}` : "",
