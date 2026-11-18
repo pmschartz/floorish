@@ -59,7 +59,7 @@ export const useDetect = create<DetectState>((set, get) => ({
       );
       if (signal.aborted) return;
       set({ step: "Snapping to walls…" });
-      const built = buildProposal(raw, img.factor, img.mask, plan.pxPerInch, img.ink);
+      const built = buildProposal(raw, img.factor, img.mask, plan.pxPerInch, img.ink, img.fill);
       const current = usePlan.getState().plan;
       // Rooms you already named keep your names (e.g. a bedroom you use as an office).
       const { rooms, detectedName } = carryOverNames(built.rooms, current?.rooms ?? []);

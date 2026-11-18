@@ -4,6 +4,7 @@ import { bbox, polygonArea } from "../model/geometry";
 import { formatArea, formatLength } from "../model/units";
 import { effectivePpi, usePlan } from "../state/planStore";
 import { LengthInput } from "./LengthInput";
+import { RemeasureWalls } from "./RemeasureWalls";
 import { RoomDesignPanel } from "./RoomDesignPanel";
 import { RoomPaintPanel } from "./RoomPaintPanel";
 import { RoomSuggestPanel } from "./RoomSuggestPanel";
@@ -175,6 +176,7 @@ function PlanOverview() {
         <li className={plan.items.length ? "done" : ""}>Drag furniture in. Mark what you have, what's planned, and what to buy.</li>
         <li>Select a shape and use “Shop for this”, or select a room and ask what's missing.</li>
       </ol>
+      <RemeasureWalls />
       <p className="muted small">
         {plan.rooms.length} rooms · {plan.items.length} items · {toBuy} to buy
       </p>

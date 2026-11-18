@@ -1,4 +1,5 @@
 import type { Item, Point, RawDetection, Room } from "../../shared/schemas";
+import { connectWalls, fitOpeningsToWalls } from "./walls";
 import { FIXTURE_LABEL } from "../catalog/furniture";
 import { bbox, pointInPolygon, toWorld } from "../model/geometry";
 import {
@@ -87,9 +88,9 @@ const KIND_LABEL: Record<RawDetection["doors"][number]["kind"], string> = {
  * @param inkMask all line work, including thin gray lines like door arcs. When given,
  *                door swings are read from the drawn arcs and missed doors are searched for.
  */
-export function buildProposal(raw: RawDetection, factor: number, mask: Mask, planPpi: number | null, inkMask?: Mask): Proposal {
+export function buildProposal(raw: RawDetection, factor: number, mask: Mask, planPpi: number | null, inkMask?: Mask, fillMask?: Mask): Proposal {
   const up = (p: Point): Point => ({ x: p.x * factor, y: p.y * factor });
-  const opts = defaultOpts(mask);
+  const opts = defaultOpts(mask, fillMask);
 
   // Rooms: snap edges to walls, then line up open-plan boundaries.
   const roomsPx = raw.rooms.filter((r) => r.polygon.length >= 3).map((r) => ({ ...r, polygon: r.polygon.map(up) }));
@@ -347,14 +348,18 @@ export function buildProposal(raw: RawDetection, factor: number, mask: Mask, pla
   }
 
   const inch = (px: number) => px / ppi;
-  const wallThickness = Number.isFinite(wallPx) ? Math.max(2, Math.round(inch(wallPx) * 2) / 2) : 5;
+  const measuredWall = Number.isFinite(wallPx) ? Math.max(2, Math.round(inch(wallPx) * 2) / 2) : 5;
 
-  const rooms: NewRoom[] = roomsPx.map((r, i) => ({
+  const snappedRooms: NewRoom[] = roomsPx.map((r, i) => ({
     name: r.name,
     type: r.type,
     polygon: polys[i].map((p) => ({ x: inch(p.x), y: inch(p.y) })),
-    walls: edges[i].map((e) => (e.axis === null ? wallThickness : e.wall === null ? null : Math.round(inch(e.wall) * 2) / 2)),
+    walls: edges[i].map((e) => (e.axis === null ? measuredWall : e.wall === null ? null : Math.round(inch(e.wall) * 2) / 2)),
   }));
+  // Walls between rooms fill the gap between them, so neighbouring rooms share one wall.
+  const connected = connectWalls(snappedRooms, measuredWall);
+  const rooms: NewRoom[] = snappedRooms.map((r, i) => ({ ...r, walls: connected.walls[i] }));
+  const wallThickness = connected.typical;
 
   const openings: NewItem[] = [];
   for (const o of ops) {
@@ -458,7 +463,7 @@ export function buildProposal(raw: RawDetection, factor: number, mask: Mask, pla
   }
 
   return {
-    ppi, ppiSource, scaleDisagreement, wallThickness, rooms, openings, fixtures,
+    ppi, ppiSource, scaleDisagreement, wallThickness, rooms, openings: fitOpeningsToWalls(openings, rooms, connected.walls), fixtures,
     notes: raw.notes, correctedDoors: corrected, addedDoors: added, addedWindows, orphanDoorsNear,
   };
 }

@@ -263,7 +263,6 @@ function Toolbar() {
             e.target.value = "";
             if (f) void upload(f);
           }} />
-        <SpendMeter />
         <details className="menu">
           <summary>Export</summary>
           <div className="menu-items" onClick={(e) => (e.currentTarget.parentElement as HTMLDetailsElement).removeAttribute("open")}>
@@ -273,9 +272,12 @@ function Toolbar() {
           </div>
         </details>
       </div>
-      <span className={`save-status ${saveStatus}`} title={saveError ?? undefined}>
-        {saveStatus === "saving" ? "Saving…" : saveStatus === "error" ? "Not saved" : saveStatus === "saved" ? "Saved" : ""}
-      </span>
+      <div className="toolbar-status">
+        <SpendMeter />
+        <span className={`save-status ${saveStatus}`} title={saveError ?? undefined}>
+          {saveStatus === "saving" ? "Saving…" : saveStatus === "error" ? "Not saved" : saveStatus === "saved" ? "Saved" : ""}
+        </span>
+      </div>
     </header>
   );
 }

@@ -26,17 +26,29 @@ export type Axis = "h" | "v";
 export interface Band {
   lo: number; // first wall row (h) / column (v)
   hi: number; // last wall row / column, inclusive
+  /** Drawn as an outline with a lighter fill between its two faces (not solid ink). */
+  hollow?: boolean;
 }
 
 export interface SnapOpts {
   radius: number; // how far from the guess to look for a wall, px
   minThick: number; // thinner dark runs are lines/text, not walls
   maxThick: number;
+  /** Anything that isn't blank paper (fills, hatching, tints). Lets outlined walls count as one wall. */
+  fill?: Mask;
+  /** Widest fill between a wall's two outline lines, px. */
+  maxFill: number;
 }
 
-export function defaultOpts(m: Mask): SnapOpts {
+export function defaultOpts(m: Mask, fill?: Mask): SnapOpts {
   const big = Math.max(m.w, m.h);
-  return { radius: Math.max(6, Math.round(big * 0.02)), minThick: Math.max(2, Math.round(big * 0.0015)), maxThick: Math.round(big * 0.05) };
+  return {
+    radius: Math.max(6, Math.round(big * 0.02)),
+    minThick: Math.max(2, Math.round(big * 0.0015)),
+    maxThick: Math.round(big * 0.05),
+    fill,
+    maxFill: Math.max(4, Math.round(big * 0.015)),
+  };
 }
 
 /**
@@ -60,24 +72,42 @@ export function findWallBand(m: Mask, axis: Axis, at: number, from: number, to: 
     for (let s = s0; s <= s1; s += step, n++) hits += axis === "h" ? dark(m, s, r) : dark(m, r, s);
     return n > 0 && hits / n >= minScore;
   };
-  const wallish: boolean[] = [];
-  for (let r = lo; r <= hi; r++) wallish.push(isWall(r));
+  // Filled (not blank paper) across much of the span: the inside of an outlined wall.
+  const isFilled = (r: number) => {
+    if (!o.fill || r < 0 || r >= limit) return false;
+    let hits = 0, n = 0;
+    for (let s = s0; s <= s1; s += step, n++) hits += axis === "h" ? dark(o.fill, s, r) : dark(o.fill, r, s);
+    // Windows and doors interrupt the fill, so "mostly" is a bit under half the wall.
+    return n > 0 && hits / n >= 0.45;
+  };
+
+  // Dark runs (lines), wider than the search window where a run touches its edge.
+  const runs: Band[] = [];
+  const pad = o.maxFill + o.maxThick; // look past the window for a wall's other outline
+  for (let r = lo - pad, start = -1; r <= hi + pad + 1; r++) {
+    const w = r <= hi + pad && isWall(r);
+    if (w && start < 0) start = r;
+    if (!w && start >= 0) { runs.push({ lo: start, hi: r - 1 }); start = -1; }
+  }
+  // Two outline lines with a fill between them are one wall (e.g. a gray or yellow wall drawn
+  // with dark edges). Blank paper between lines doesn't count, so tinted plans aren't affected.
+  const merged: Band[] = [];
+  for (const run of runs) {
+    const prev = merged[merged.length - 1];
+    const gap = prev ? run.lo - prev.hi - 1 : Infinity;
+    let filled = gap <= o.maxFill && run.hi - prev!.lo + 1 <= o.maxThick;
+    for (let r = prev ? prev.hi + 1 : 0; filled && r < run.lo; r++) filled = isFilled(r);
+    if (prev && filled) { prev.hi = run.hi; prev.hollow = true; } else merged.push({ ...run });
+  }
 
   let best: Band | null = null, bestDist = Infinity;
-  for (let i = 0; i < wallish.length; ) {
-    if (!wallish[i]) { i++; continue; }
-    let j = i;
-    while (j + 1 < wallish.length && wallish[j + 1]) j++;
-    const band = { lo: lo + i, hi: lo + j };
-    // A wall can straddle the edge of the search window; follow it to its real faces.
-    if (i === 0) while (band.hi - band.lo < o.maxThick && isWall(band.lo - 1)) band.lo--;
-    if (j === wallish.length - 1) while (band.hi - band.lo < o.maxThick && isWall(band.hi + 1)) band.hi++;
+  for (const band of merged) {
+    if (band.hi < lo || band.lo > hi) continue; // outside the search window
     const thick = band.hi - band.lo + 1;
     if (thick >= o.minThick && thick <= o.maxThick) {
       const dist = at < band.lo ? band.lo - at : at > band.hi + 1 ? at - band.hi - 1 : 0;
       if (dist < bestDist) { best = band; bestDist = dist; }
     }
-    i = j + 1;
   }
   return best;
 }
@@ -193,9 +223,11 @@ export function snapOpening(a: Point, b: Point, m: Mask, o: SnapOpts): SnappedOp
   if (!band) return { axis, perp: at, start, end, thickness: null, gapFound: false };
 
   const thick = band.hi - band.lo + 1;
+  // In an outlined wall, the fill counts as wall too; a door leaves blank paper.
+  const solid = (x: number, y: number) => dark(m, x, y) || (band.hollow && o.fill ? dark(o.fill, x, y) : 0);
   const fill = (s: number) => {
     let n = 0;
-    for (let r = band.lo; r <= band.hi; r++) n += axis === "h" ? dark(m, s, r) : dark(m, r, s);
+    for (let r = band.lo; r <= band.hi; r++) n += axis === "h" ? solid(s, r) : solid(r, s);
     return n / thick;
   };
   const mid = Math.round((start + end) / 2);

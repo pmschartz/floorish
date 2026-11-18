@@ -16,6 +16,7 @@ function loadImage(url: string): Promise<HTMLImageElement> {
 export async function preparePlanImage(url: string): Promise<{
   mask: Mask; // dark strokes: walls
   ink: Mask; // all line work, including thin gray lines like door arcs and fixture outlines
+  fill: Mask; // anything that isn't blank paper: wall fills, hatching, tints
   forClaude: { base64: string; mediaType: "image/jpeg"; width: number; height: number };
   factor: number; // original px per sent px
 }> {
@@ -33,6 +34,8 @@ export async function preparePlanImage(url: string): Promise<{
   const mask = maskFromRgba(rgba, w, h);
   // Room tints (peach, blue, beige) sit above ~195 luminance; line work is darker.
   const ink = maskFromRgba(rgba, w, h, 185);
+  // Wall fills (gray, yellow, hatching) between a wall's outline lines.
+  const fill = maskFromRgba(rgba, w, h, 235);
 
   const k = Math.min(1, CLAUDE_MAX_SIDE / Math.max(w, h));
   const sw = Math.round(w * k), sh = Math.round(h * k);
@@ -47,6 +50,7 @@ export async function preparePlanImage(url: string): Promise<{
   return {
     mask,
     ink,
+    fill,
     forClaude: { base64: dataUrl.slice(dataUrl.indexOf(",") + 1), mediaType: "image/jpeg", width: sw, height: sh },
     factor: w / sw,
   };
