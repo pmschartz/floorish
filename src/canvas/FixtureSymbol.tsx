@@ -1,3 +1,4 @@
+import { PLAN } from "./theme";
 import { Circle, Ellipse, Line, Rect, Text } from "react-konva";
 
 /**
@@ -13,7 +14,7 @@ export function FixtureSymbol({ kind, w, d, s, stroke, clean }: {
   clean: boolean;
 }) {
   const sw = 1.2 / s;
-  const fill = clean ? "#fbfaf8" : "rgba(255,255,255,0.55)";
+  const fill = clean ? PLAN.fixtureFill : PLAN.fixtureFillImage;
   const x0 = -w / 2, y0 = -d / 2;
   const base = <Rect x={x0} y={y0} width={w} height={d} fill={fill} stroke={stroke} strokeWidth={sw} />;
   const m = Math.min(w, d);

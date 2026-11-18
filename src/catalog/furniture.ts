@@ -240,11 +240,5 @@ export function clearancesFor(item: Pick<Item, "catalogKey" | "category">): Clea
   return byCat?.clearances ?? [];
 }
 
-export const STATUS_COLORS: Record<Item["status"], { fill: string; stroke: string }> = {
-  // Floorish: stone for what you own, lake for planned, honey for what to buy.
-  existing: { fill: "rgba(214,205,190,0.6)", stroke: "#8a7a63" },
-  planned: { fill: "rgba(53,107,140,0.18)", stroke: "#356b8c" },
-  "to-buy": { fill: "rgba(227,169,53,0.30)", stroke: "#a7771a" },
-};
 
 export const PASSIVE_CATEGORIES = new Set(["rug", "door", "window", "opening", "double door", "sliding door", "pocket door", "bifold door", "garage door"]);

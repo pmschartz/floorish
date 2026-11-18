@@ -43,11 +43,11 @@ function Thumb({ plan, room, items, active }: { plan: Plan; room: Room; items: I
   return (
     <svg viewBox={`${b.minX - pad} ${b.minY - pad} ${b.width + pad * 2} ${b.height + pad * 2}`} className={active ? "thumb active" : "thumb"}
       preserveAspectRatio="xMidYMid meet" aria-hidden>
-      <polygon points={poly(room.polygon)} fill="#fbf6ec" stroke="#3b2f25" strokeWidth={Math.max(b.width, b.height) / 40} />
-      {fixtures.map((f) => <polygon key={f.id} points={poly(itemCorners(f))} fill="#ece5d8" stroke="#a99b88" strokeWidth={0.6} />)}
+      <polygon points={poly(room.polygon)} fill="var(--plan-floor)" stroke="var(--plan-wall)" strokeWidth={Math.max(b.width, b.height) / 40} />
+      {fixtures.map((f) => <polygon key={f.id} points={poly(itemCorners(f))} fill="var(--surface-sunken)" stroke="var(--ink-faint)" strokeWidth={0.6} />)}
       {items.map((i) => (
-        <polygon key={i.id} points={poly(itemCorners(i))} fill={i.category === "rug" ? "rgba(233,205,178,0.6)" : "rgba(53,107,140,0.3)"}
-          stroke="#356b8c" strokeWidth={0.8} />
+        <polygon key={i.id} points={poly(itemCorners(i))} fill={i.category === "rug" ? "var(--walnut-soft)" : "var(--lake-soft)"}
+          stroke="var(--lake)" strokeWidth={0.8} />
       ))}
     </svg>
   );

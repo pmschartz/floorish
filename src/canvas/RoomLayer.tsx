@@ -46,21 +46,8 @@ export function RoomLayer({ rooms, ppi, stageScale, units, selectedRoomId, inter
   );
 }
 
-const TYPE_FILL: Record<Room["type"], string> = {
-  // Warm Floorish tints: walnut for bedrooms, lake for wet rooms, honey for the kitchen, moss for work.
-  bedroom: "#f2e1d0",
-  bath: "#dde9f0",
-  kitchen: "#f5e9cf",
-  living: "#f6efe3",
-  dining: "#f6efe3",
-  office: "#e3ebdc",
-  closet: "#ece5d8",
-  laundry: "#dfe9e9",
-  hall: "#f6efe3",
-  entry: "#f6efe3",
-  garage: "#e9e3d8",
-  other: "#f3ece0",
-};
+/** Room floors in clean view, tinted by type (from the current theme). */
+const typeFill = (t: Room["type"]) => PLAN.roomFill[t] ?? PLAN.roomFill.other;
 
 /**
  * A room's walls as filled shapes (inches): a band along the outside of each walled edge, with
@@ -119,7 +106,7 @@ export function CleanRoomLayer({ rooms, ppi, stageScale, units, selectedRoomId, 
             key={`fill-${room.id}`}
             points={room.polygon.flatMap((p) => [p.x * ppi, p.y * ppi])}
             closed
-            fill={TYPE_FILL[room.type] ?? TYPE_FILL.other}
+            fill={typeFill(room.type)}
             stroke={selected ? PLAN.lake : undefined}
             strokeWidth={2.5 / stageScale}
             listening={interactive}
@@ -154,7 +141,7 @@ export function DraftPath({ points, hover, closed, stageScale, color }: {
       <Line points={all.flatMap((p) => [p.x, p.y])} closed={closed} stroke={color} strokeWidth={2 / stageScale}
         dash={[6 / stageScale, 4 / stageScale]} fill={closed ? `${color}22` : undefined} />
       {points.map((p, i) => (
-        <Circle key={i} x={p.x} y={p.y} radius={(i === 0 ? 5 : 3.5) / stageScale} fill={i === 0 ? color : "#fff"}
+        <Circle key={i} x={p.x} y={p.y} radius={(i === 0 ? 5 : 3.5) / stageScale} fill={i === 0 ? color : PLAN.paper}
           stroke={color} strokeWidth={1.5 / stageScale} />
       ))}
     </Group>

@@ -19,6 +19,23 @@ import { useDetect } from "./detect/detectStore";
 import { useShortcuts } from "./panels/Shortcuts";
 import { FloorTabs } from "./panels/FloorTabs";
 import { planPage } from "./canvas/page";
+import { useTheme, type ThemePref } from "./state/theme";
+
+/** Light, dark, or follow the computer's setting. */
+function ThemeToggle() {
+  const pref = useTheme((s) => s.pref);
+  const setPref = useTheme((s) => s.setPref);
+  const options: Array<[ThemePref, string]> = [["light", "Light"], ["dark", "Dark"], ["system", "System"]];
+  return (
+    <div className="theme-toggle" role="radiogroup" aria-label="Appearance">
+      {options.map(([value, label]) => (
+        <button key={value} role="radio" aria-checked={pref === value} className={pref === value ? "on" : ""} onClick={() => setPref(value)}>
+          {label}
+        </button>
+      ))}
+    </div>
+  );
+}
 import { useGridChoice } from "./state/gridChoice";
 import { effectivePpi, flushSave, usePlan, type Tool, redo, undo } from "./state/planStore";
 
@@ -107,6 +124,7 @@ function Home() {
     <div className="home">
       <header>
         <img className="brand-lockup" src="/brand/floorish-lockup.svg" alt="Floorish" />
+        <ThemeToggle />
         <h1>Make room for what you love.</h1>
         <p className="tagline">Upload a floor plan, lay out what you own, and find furniture that fits.</p>
       </header>
@@ -203,6 +221,7 @@ function Editor() {
   const selectedItemId = usePlan((s) => s.selectedItemId);
   const selectedRoomId = usePlan((s) => s.selectedRoomId);
   const [tab, setTab] = useState<Tab>("selected");
+  const theme = useTheme((s) => s.theme);
   const gridChosen = useGridChoice((s) => s.planId === plan.id);
   const detecting = useDetect((s) => s.status !== "idle");
 
@@ -226,7 +245,7 @@ function Editor() {
       <div className="editor-body">
         <LibraryPanel />
         <main className="canvas-area">
-          <PlanCanvas issues={issues} />
+          <PlanCanvas key={theme} issues={issues} />
           {showUpload && <UploadOverlay onGrid={() => useGridChoice.getState().choose(plan.id)} />}
         </main>
         <aside className="panel right">

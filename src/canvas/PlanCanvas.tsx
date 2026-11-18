@@ -361,7 +361,7 @@ export function PlanCanvas({ issues }: { issues: Issue[] }) {
                 const z = clearanceZone(selected, r.side, r.dist);
                 return (
                   <Line key={r.side} points={z.flatMap((p) => [p.x * ppi, p.y * ppi])} closed
-                    fill={blocked ? "rgba(166,63,41,0.12)" : "rgba(62,106,75,0.12)"}
+                    fill={blocked ? PLAN.blockedFill : PLAN.okFill}
                     stroke={blocked ? PLAN.brick : PLAN.moss} strokeWidth={1 / s} dash={[4 / s, 3 / s]} />
                 );
               })}

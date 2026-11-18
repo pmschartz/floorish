@@ -74,12 +74,12 @@ export function RoomLabels({ rooms, items, ppi, stageScale, units, clean, select
           // Rooms too small for even the name fade back so they don't clutter.
           <Group key={room.id} opacity={fits || selected ? 1 : 0.75}>
             <Rect x={x} y={y} width={w} height={h} cornerRadius={h / 2.4}
-              fill={clean ? "rgba(255,252,246,0.82)" : "rgba(255,252,246,0.88)"}
-              stroke={selected ? PLAN.lake : "rgba(58,40,24,0.10)"} strokeWidth={(selected ? 1.5 : 1) / s}
-              shadowColor="#3a2818" shadowOpacity={0.14} shadowBlur={4 / s} shadowOffsetY={1 / s} />
+              fill={clean ? PLAN.labelBg : PLAN.labelBgImage}
+              stroke={selected ? PLAN.lake : PLAN.labelEdge} strokeWidth={(selected ? 1.5 : 1) / s}
+              shadowColor={PLAN.labelShadow} shadowOpacity={0.14} shadowBlur={4 / s} shadowOffsetY={1 / s} />
             {dot > 0 && (
               <Circle x={x + (PAD_PX + DOT_PX / 2) / s} y={y + (PAD_PX + NAME_PX / 2) / s} radius={DOT_PX / 2 / s}
-                fill={entryHex(room.paint!.walls!)} stroke="rgba(0,0,0,0.25)" strokeWidth={1 / s} />
+                fill={entryHex(room.paint!.walls!)} stroke={PLAN.swatchEdge} strokeWidth={1 / s} />
             )}
             <Text text={room.name} x={x + dot / s} y={y + PAD_PX / s} width={w - dot / s} align="center" fontSize={NAME_PX / s}
               fontStyle="bold" fontFamily={PLAN.font} fill={ink} wrap="none" />

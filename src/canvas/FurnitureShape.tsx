@@ -2,7 +2,7 @@ import type Konva from "konva";
 import { memo } from "react";
 import { Arc, Ellipse, Group, Line, Rect, Text } from "react-konva";
 import type { Item } from "../../shared/schemas";
-import { openingKind, STATUS_COLORS } from "../catalog/furniture";
+import { openingKind } from "../catalog/furniture";
 import { FixtureSymbol } from "./FixtureSymbol";
 import { armDepth, outlineLocal, snap } from "../model/geometry";
 import { formatDims, type UnitSystem } from "../model/units";
@@ -30,11 +30,11 @@ function outlinePx(item: Item, ppi: number): number[] {
 function FurnitureShapeInner({ item, ppi, stageScale, units, selected, issue, draggable, clean, onSelect, onChange }: Props) {
   const w = item.width * ppi;
   const d = item.depth * ppi;
-  const colors = STATUS_COLORS[item.status];
+  const colors = PLAN.status[item.status];
   const stroke = issue === "error" ? PLAN.brick : issue === "warning" ? PLAN.honeyInk : selected ? PLAN.lake : colors.stroke;
   const strokeWidth = (selected || issue ? 2.5 : 1.5) / stageScale;
   const dash = issue === "warning" ? [6 / stageScale, 4 / stageScale] : undefined;
-  const fill = item.category === "rug" ? "rgba(233,205,178,0.45)" : colors.fill;
+  const fill = item.category === "rug" ? PLAN.rug : colors.fill;
 
   const handleDragEnd = (e: Konva.KonvaEventObject<DragEvent>) => {
     const free = e.evt.altKey;
@@ -82,7 +82,7 @@ function FurnitureShapeInner({ item, ppi, stageScale, units, selected, issue, dr
         const r = w / 2;
         body = (
           <>
-            <Rect x={-w / 2} y={-d / 2} width={w} height={d} fill="#fff"
+            <Rect x={-w / 2} y={-d / 2} width={w} height={d} fill={PLAN.gap}
               stroke={clean && !selected && !issue ? undefined : stroke} strokeWidth={strokeWidth} />
             <Line points={[-w / 2, d / 2, -w / 2, d / 2 + r]} stroke={ink} strokeWidth={strokeWidth * 1.4} />
             <Line points={[w / 2, d / 2, w / 2, d / 2 + r]} stroke={ink} strokeWidth={strokeWidth * 1.4} />
@@ -97,7 +97,7 @@ function FurnitureShapeInner({ item, ppi, stageScale, units, selected, issue, dr
       }
       body = (
         <>
-          <Rect x={-w / 2} y={-d / 2} width={w} height={d} fill="#fff"
+          <Rect x={-w / 2} y={-d / 2} width={w} height={d} fill={PLAN.gap}
             stroke={clean && !selected && !issue ? undefined : stroke} strokeWidth={strokeWidth} />
           <Line points={[hx, d / 2, hx, d / 2 + w]} stroke={ink} strokeWidth={strokeWidth * 1.4} />
           <Arc x={hx} y={d / 2} innerRadius={w} outerRadius={w} angle={90} rotation={item.flip ? 90 : 0}
@@ -110,15 +110,15 @@ function FurnitureShapeInner({ item, ppi, stageScale, units, selected, issue, dr
     case "window":
       body = clean ? (
         <>
-          <Rect x={-w / 2} y={-d / 2} width={w} height={d} fill="#fff" />
+          <Rect x={-w / 2} y={-d / 2} width={w} height={d} fill={PLAN.gap} />
           <Line points={[-w / 2, -d / 2, w / 2, -d / 2]} stroke={selected || issue ? stroke : PLAN.wall} strokeWidth={1.2 / stageScale} />
           <Line points={[-w / 2, d / 2, w / 2, d / 2]} stroke={selected || issue ? stroke : PLAN.wall} strokeWidth={1.2 / stageScale} />
-          <Line points={[-w / 2, 0, w / 2, 0]} stroke="#7a8a99" strokeWidth={1 / stageScale} />
+          <Line points={[-w / 2, 0, w / 2, 0]} stroke={PLAN.windowLine} strokeWidth={1 / stageScale} />
           {selected && <Rect x={-w / 2} y={-d / 2} width={w} height={d} stroke={stroke} strokeWidth={strokeWidth} />}
         </>
       ) : (
         <>
-          <Rect x={-w / 2} y={-d / 2} width={w} height={d} fill="#e0f2fe" stroke={stroke} strokeWidth={strokeWidth} />
+          <Rect x={-w / 2} y={-d / 2} width={w} height={d} fill={PLAN.windowFill} stroke={stroke} strokeWidth={strokeWidth} />
           <Line points={[-w / 2, 0, w / 2, 0]} stroke={stroke} strokeWidth={strokeWidth * 0.7} />
         </>
       );
@@ -129,9 +129,9 @@ function FurnitureShapeInner({ item, ppi, stageScale, units, selected, issue, dr
       const lw = 1.3 / stageScale;
       // The gap in the wall, then the door's symbol inside it.
       const gap = clean ? (
-        <Rect x={-w / 2} y={-d / 2} width={w} height={d} fill="#fff" stroke={selected || issue ? stroke : undefined} strokeWidth={strokeWidth} />
+        <Rect x={-w / 2} y={-d / 2} width={w} height={d} fill={PLAN.gap} stroke={selected || issue ? stroke : undefined} strokeWidth={strokeWidth} />
       ) : (
-        <Rect x={-w / 2} y={-d / 2} width={w} height={d} fill="rgba(255,255,255,0.6)" stroke={stroke} strokeWidth={strokeWidth}
+        <Rect x={-w / 2} y={-d / 2} width={w} height={d} fill={PLAN.gapImage} stroke={stroke} strokeWidth={strokeWidth}
           dash={[3 / stageScale, 3 / stageScale]} />
       );
       let symbol: React.ReactNode = null;
@@ -228,7 +228,7 @@ function FurnitureShapeInner({ item, ppi, stageScale, units, selected, issue, dr
       {body}
       {item.color && !builtIn && (
         <Rect x={w / 2 - 9 / stageScale} y={-d / 2 + 3 / stageScale} width={6 / stageScale} height={6 / stageScale}
-          fill={item.color} stroke="#0003" strokeWidth={0.5 / stageScale} listening={false} />
+          fill={item.color} stroke={PLAN.swatchEdge} strokeWidth={0.5 / stageScale} listening={false} />
       )}
       {showLabel && !builtIn && (
         // Turned more than a quarter turn, the label spins back so it never reads upside down

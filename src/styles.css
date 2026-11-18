@@ -30,7 +30,7 @@ a { color: var(--accent); }
 .small { font-size: 12px; }
 .error-text { color: var(--error); font-size: 13px; }
 .ok-text { color: var(--ok); font-weight: 600; }
-.notice { background: var(--honey-soft); border: 1px solid #ecd49a; border-radius: 6px; padding: 8px 10px; font-size: 12px; margin: 8px 0; }
+.notice { background: var(--honey-soft); border: 1px solid var(--honey-line); border-radius: 6px; padding: 8px 10px; font-size: 12px; margin: 8px 0; }
 .centered { height: 100%; display: grid; place-content: center; gap: 8px; text-align: center; }
 
 button, input, select, textarea { font: inherit; color: inherit; }
@@ -87,7 +87,7 @@ kbd { font-family: var(--font-mono); font-size: 11px; border: 1px solid var(--bo
 .plan-name:hover { border-color: var(--border); }
 .tool-group { display: flex; gap: 2px; padding: 3px; background: var(--surface-sunken); border-radius: 10px; }
 .tool-group button { border-color: transparent; background: transparent; color: var(--ink-muted); }
-.tool-group button:hover:not(:disabled) { background: rgba(255, 252, 246, 0.6); border-color: transparent; color: var(--ink); }
+.tool-group button:hover:not(:disabled) { background: var(--hover-wash); border-color: transparent; color: var(--ink); }
 .tool-group button.on { background: var(--surface-raised); border-color: transparent; box-shadow: var(--shadow-sm); color: var(--ink); }
 .toolbar-status { margin-left: auto; display: flex; align-items: center; gap: 8px; }
 .save-status { font-size: 12px; color: var(--muted); }
@@ -105,17 +105,17 @@ kbd { font-family: var(--font-mono); font-size: 11px; border: 1px solid var(--bo
 /* ---- Canvas ---- */
 .canvas-wrap { position: absolute; inset: 0; overflow: hidden; background: var(--surface-sunken); }
 .scale-bar {
-  position: absolute; left: 12px; bottom: 12px; background: rgba(255, 252, 246, 0.92); padding: 6px 8px; border-radius: 6px;
+  position: absolute; left: 12px; bottom: 12px; background: var(--float-bg); padding: 6px 8px; border-radius: 6px;
   font-size: 12px; display: grid; gap: 3px; pointer-events: none; box-shadow: var(--shadow-sm);
 }
 .scale-bar-line { height: 6px; border: 2px solid var(--text); border-top: none; }
 .tool-hint {
-  position: absolute; top: 12px; left: 50%; transform: translateX(-50%); background: rgba(42, 33, 25, 0.92); color: var(--on-moss);
+  position: absolute; top: 12px; left: 50%; transform: translateX(-50%); background: var(--hint-bg); color: var(--hint-ink);
   padding: 7px 12px; border-radius: 8px; font-size: 13px; pointer-events: none; max-width: 80%; text-align: center;
 }
 .zoom-controls { position: absolute; right: 12px; bottom: 12px; display: flex; gap: 2px; background: var(--surface-raised); border-radius: 8px; padding: 2px; box-shadow: var(--shadow-sm); }
 .zoom-controls button { border-color: transparent; min-width: 32px; }
-.upload-overlay { position: absolute; inset: 0; display: grid; place-items: center; background: rgba(239, 231, 217, 0.85); }
+.upload-overlay { position: absolute; inset: 0; display: grid; place-items: center; background: var(--overlay-bg); }
 .upload-overlay.over .upload-card { outline: 3px dashed var(--accent); }
 .upload-card { background: var(--surface-raised); border-radius: 12px; padding: 28px; width: min(420px, 90%); display: grid; gap: 12px; text-align: center; box-shadow: var(--shadow-lg); }
 
@@ -301,7 +301,7 @@ kbd { font-family: var(--font-mono); font-size: 11px; border: 1px solid var(--bo
 .dialog p { margin: 0; color: var(--muted); font-size: 14px; line-height: 1.45; }
 .dialog-actions { display: flex; justify-content: flex-end; gap: 8px; margin-top: 6px; }
 button.danger-solid { background: var(--danger); border-color: var(--danger); color: var(--on-moss); }
-button.danger-solid:hover:not(:disabled) { background: #8c3422; }
+button.danger-solid:hover:not(:disabled) { background: var(--brick-strong); }
 
 .reuse-offer { display: grid; gap: 6px; margin: 6px 0; }
 .reuse-offer p { margin: 0; }
@@ -350,7 +350,7 @@ h4 { font-size: 12px; margin: 4px 0 2px; color: var(--muted); font-weight: 600; 
 .plan-list li:hover { box-shadow: var(--shadow-md); }
 .plan-list a strong { font-family: var(--font-display); font-variation-settings: "SOFT" 100, "WONK" 0; font-size: 17px; font-weight: 600; }
 .home .tagline { color: var(--muted); font-size: 17px; line-height: 26px; margin: 0; }
-.suggestion { background: var(--honey-soft); border-color: #ecd49a; }
+.suggestion { background: var(--honey-soft); border-color: var(--honey-line); }
 .product { background: var(--surface-raised); box-shadow: var(--shadow-sm); }
 .dialog { border-radius: var(--radius-lg); box-shadow: var(--shadow-lg); }
 .dialog h2 { font-size: 20px; }
@@ -418,7 +418,7 @@ button.icon-button:hover:not(:disabled) { background: var(--brick-soft); color: 
 .shortcuts-card dd { margin: 0; display: flex; gap: 3px; }
 /* The Export menu's label matches the toolbar buttons beside it. */
 .tool-group .menu summary { padding: 5px 12px; border: 1px solid transparent; border-radius: var(--radius-sm); font-weight: 600; color: var(--ink-muted); transition: background var(--ease), color var(--ease); }
-.tool-group .menu summary:hover { background: rgba(255, 252, 246, 0.6); color: var(--ink); }
+.tool-group .menu summary:hover { background: var(--hover-wash); color: var(--ink); }
 .tool-group .menu[open] summary { background: var(--surface-raised); color: var(--ink); box-shadow: var(--shadow-sm); }
 .menu-items { border-radius: var(--radius-md); }
 .menu-items button { font-weight: 500; border-radius: var(--radius-sm); }
@@ -441,13 +441,13 @@ button.icon-button:hover:not(:disabled) { background: var(--brick-soft); color: 
 .floor-bar .plan-name { margin-right: 0; }
 .floor-tabs { display: flex; align-items: center; gap: 2px; padding: 3px; background: var(--surface-sunken); border-radius: 10px; }
 .floor-tab { border-color: transparent; background: transparent; color: var(--ink-muted); padding: 5px 12px; }
-.floor-tab:hover:not(:disabled) { background: rgba(255, 252, 246, 0.6); border-color: transparent; color: var(--ink); }
+.floor-tab:hover:not(:disabled) { background: var(--hover-wash); border-color: transparent; color: var(--ink); }
 .floor-tab.on { background: var(--surface-raised); color: var(--ink); box-shadow: var(--shadow-sm); cursor: default; }
 input.floor-tab.editing { width: 120px; font-weight: 600; border-color: var(--lake); cursor: text; }
 .add-floor { position: relative; }
 .floor-add { border-color: transparent; background: transparent; color: var(--ink-muted); min-width: 30px; padding: 4px 8px; font-size: 16px; line-height: 1; }
 .floor-bar > .add-floor .floor-add { border: 1px dashed var(--line-strong); }
-.floor-add:hover:not(:disabled) { background: rgba(255, 252, 246, 0.6); color: var(--ink); }
+.floor-add:hover:not(:disabled) { background: var(--hover-wash); color: var(--ink); }
 .add-floor-menu { left: 0; right: auto; width: 260px; }
 .menu-note { margin: 4px 8px; font-size: 12px; color: var(--ink-muted); }
 /* Home: a house with its floors */
@@ -471,3 +471,18 @@ input.floor-tab.editing { width: 120px; font-weight: 600; border-color: var(--la
 .floor-caret { color: var(--ink-muted); margin-right: -2px; }
 .floor-menu { left: 0; right: auto; min-width: 200px; }
 .floor-menu button.danger { color: var(--brick); }
+
+/* Evening: reversed logos */
+:root[data-theme="dark"] .brand-lockup { content: url("/brand/floorish-lockup-reversed.svg"); }
+:root[data-theme="dark"] .toolbar .back img { content: url("/brand/floorish-mark-reversed.svg"); }
+
+/* Home: appearance toggle, top right of the header */
+.home header { position: relative; }
+.theme-toggle { position: absolute; top: 6px; right: 0; display: flex; gap: 2px; padding: 3px; background: var(--surface-sunken); border-radius: 10px; }
+.theme-toggle button { border-color: transparent; background: transparent; color: var(--ink-muted); padding: 4px 10px; font-size: 13px; }
+.theme-toggle button:hover:not(:disabled) { background: var(--hover-wash); border-color: transparent; color: var(--ink); }
+.theme-toggle button.on { background: var(--surface-raised); color: var(--ink); box-shadow: var(--shadow-sm); }
+/* The chosen option keeps its pill while hovered (hover styles were overriding it). */
+.tool-group button.on:hover:not(:disabled), .floor-tab.on:hover:not(:disabled), .room-style-seg button.on:hover, .theme-toggle button.on:hover:not(:disabled), .room-walls .seg button.on:hover:not(:disabled) {
+  background: var(--surface-raised); color: var(--ink); box-shadow: var(--shadow-sm);
+}

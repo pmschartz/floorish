@@ -85,7 +85,7 @@ export function RoomEditHandles({ room, rooms, ppi, stageScale, onMoveEdge }: {
             fill={PLAN.moss}
             stroke={PLAN.paper}
             strokeWidth={2 / s}
-            shadowColor="#000"
+            shadowColor={PLAN.shadow}
             shadowOpacity={0.15}
             shadowBlur={3 / s}
             draggable
