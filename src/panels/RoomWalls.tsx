@@ -33,7 +33,7 @@ export function RoomWalls({ room }: { room: Room }) {
 
   return (
     <section className="room-walls" onMouseLeave={() => useWallHover.setState({ roomId: null, edge: null })}>
-      <h3>Walls</h3>
+      <h4>Walls</h4>
       <ul>
         {named.map((x) => {
           const on = room.walls ? room.walls[x.e.edge] !== null : true;
@@ -50,7 +50,7 @@ export function RoomWalls({ room }: { room: Room }) {
           );
         })}
       </ul>
-      <p className="muted small">Open means no wall between this room and the next (like a kitchen open to the living room). A side with nothing beyond it is always an outside wall.</p>
+      <p className="muted small">Open means no wall to the next room, like a kitchen open to the living room. A side with nothing beyond it is always an outside wall.</p>
     </section>
   );
 }

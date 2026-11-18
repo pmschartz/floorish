@@ -22,11 +22,13 @@ import { usePlan, keepRoomResult, undo } from "../state/planStore";
 /** A room's versions, the redesign brief, and the room chat. */
 export function RoomDesignPanel({ room }: { room: Room }) {
   return (
-    <>
-      <VersionStrip room={room} />
+    <section className="room-design">
+      <h3>Design with Claude</h3>
+      {/* Versions only once there's more than the room as it is. */}
+      {room.versions?.length ? <VersionStrip room={room} /> : null}
       <RedesignForm room={room} />
       <RoomChat room={room} />
-    </>
+    </section>
   );
 }
 
@@ -66,7 +68,7 @@ function VersionStrip({ room }: { room: Room }) {
 
   return (
     <section className="versions">
-      <h3>Versions</h3>
+      <h4>Versions</h4>
       <div className="version-strip">
         {versions.map((v) => {
           const items = v.id === "__current" ? roomFurniture(plan.items, room) : versionItems(plan, room, v);
@@ -204,7 +206,7 @@ function RedesignForm({ room }: { room: Room }) {
   );
   return (
     <section className="redesign">
-      <h3>Redesign {room.name}</h3>
+      <h4>Redesign {room.name}</h4>
       <label className="field">
         <span>What do you want from this room?</span>
         <textarea rows={3} value={brief} onChange={(e) => setBrief(e.target.value)}
@@ -308,7 +310,7 @@ function RoomChat({ room }: { room: Room }) {
 
   return (
     <section className="room-chat">
-      <h3>Talk it through</h3>
+      <h4>Talk it through</h4>
       {msgs.length === 0 && !pending && (
         <p className="muted small">
           Ask about this room with the whole house in view, e.g. “Where should the desk go for good feng shui?” or

@@ -1,3 +1,4 @@
+import { useState } from "react";
 import { FIXTURE_KINDS, ITEM_STATUSES, ROOM_TYPES, type FixtureKind, type Item, type Room } from "../../shared/schemas";
 import { CATEGORIES, clearancesFor, FIXTURE_LABEL, OPENING_CATEGORIES, openingKind } from "../catalog/furniture";
 import { bbox, polygonArea } from "../model/geometry";
@@ -171,29 +172,48 @@ function RoomInspector({ room }: { room: Room }) {
   const { updateRoom, removeRoom } = usePlan.getState();
   const b = bbox(room.polygon);
   return (
-    <div className="inspector">
-      <label className="field">
-        <span>Room name</span>
-        <input value={room.name} onChange={(e) => updateRoom(room.id, { name: e.target.value })} />
-      </label>
-      <label className="field">
-        <span>Type</span>
-        <select value={room.type} onChange={(e) => updateRoom(room.id, { type: e.target.value as Room["type"] })}>
-          {ROOM_TYPES.map((t) => <option key={t} value={t}>{t}</option>)}
+    <div className="inspector room-inspector">
+      <div className="room-head">
+        <input className="room-name" aria-label="Room name" value={room.name}
+          onChange={(e) => updateRoom(room.id, { name: e.target.value })} />
+        <select aria-label="Room type" value={room.type}
+          onChange={(e) => updateRoom(room.id, { type: e.target.value as Room["type"] })}>
+          {ROOM_TYPES.map((t) => <option key={t} value={t}>{t.charAt(0).toUpperCase() + t.slice(1)}</option>)}
         </select>
-      </label>
-      <p>
-        {formatArea(polygonArea(room.polygon), units)} · {formatLength(b.width, units)} × {formatLength(b.height, units)}
-        {room.polygon.length !== 4 && <span className="muted"> (outer size)</span>}
-      </p>
-      <p className="muted small">Drag the handles on the room's walls to move them; they snap to other rooms' walls.</p>
-      <RoomWalls room={room} />
-      <MergeRoom room={room} />
+        <p className="room-size muted small">
+          {formatArea(polygonArea(room.polygon), units)} · {formatLength(b.width, units)} × {formatLength(b.height, units)}
+          {room.polygon.length !== 4 && " overall"}
+        </p>
+      </div>
       <RoomPaintPanel room={room} />
-      <DeleteRoom room={room} remove={removeRoom} />
       <RoomDesignPanel room={room} />
       <RoomSuggestPanel key={room.id} room={room} />
+      <RoomAdvanced room={room} remove={removeRoom} />
     </div>
+  );
+}
+
+/** Walls, merging and deleting: the room's shape, kept out of the way until needed. */
+function RoomAdvanced({ room, remove }: { room: Room; remove: (id: string, giveSpace?: boolean) => void }) {
+  const [open, setOpen] = useState(() => {
+    try { return localStorage.getItem("roomAdvancedOpen") === "1"; } catch { return false; }
+  });
+  return (
+    <details className="room-advanced" open={open} onToggle={(e) => {
+      const now = (e.target as HTMLDetailsElement).open;
+      setOpen(now);
+      try { localStorage.setItem("roomAdvancedOpen", now ? "1" : "0"); } catch { /* private window */ }
+    }}>
+      <summary>Advanced <span className="muted small">Walls, merge, delete</span></summary>
+      {open && (
+        <div className="room-advanced-body">
+          <p className="muted small">To resize the room, drag the green handles on its walls. Rooms next to it move with them.</p>
+          <RoomWalls room={room} />
+          <MergeRoom room={room} />
+          <DeleteRoom room={room} remove={remove} />
+        </div>
+      )}
+    </details>
   );
 }
 
