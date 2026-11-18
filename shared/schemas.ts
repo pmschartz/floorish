@@ -125,6 +125,13 @@ export const RoomPaintSchema = z.object({
 export type RoomPaint = z.infer<typeof RoomPaintSchema>;
 export const WALL_SIDES = ["top", "bottom", "left", "right"] as const;
 
+/** A room's own taste: what it's for (in the owner's words) and styles that replace the house's here. */
+export const RoomStyleSchema = z.object({
+  about: z.string().default(""),
+  styles: z.array(z.string()).default([]),
+});
+export type RoomStyle = z.infer<typeof RoomStyleSchema>;
+
 export const RoomSchema = z.object({
   id: z.string(),
   name: z.string(),
@@ -139,6 +146,7 @@ export const RoomSchema = z.object({
   versions: z.array(RoomVersionSchema).optional(),
   activeVersionId: z.string().nullable().optional(),
   paint: RoomPaintSchema.optional(),
+  style: RoomStyleSchema.optional(),
   suggestions: SavedSuggestionsSchema.optional(),
   /** The room's chat with Claude, kept with the plan (newest last). */
   chat: z.array(z.object({
@@ -185,14 +193,48 @@ export const PlanSchema = z.object({
   wallThickness: z.number().default(5), // inches; used for walls drawn in clean view
   rooms: z.array(RoomSchema),
   items: z.array(ItemSchema),
+  /** The house's style when the plan is a floor of a house (kept in step with the house). */
   style: StyleProfileSchema,
+  /** The house this plan is a floor of, if any; the plan's name is then the floor's name. */
+  houseId: z.string().nullable().optional(),
 });
 export type Plan = z.infer<typeof PlanSchema>;
 
 export const PlanSummarySchema = PlanSchema.pick({ id: true, name: true, updatedAt: true }).extend({
   hasImage: z.boolean(),
+  houseId: z.string().nullable().optional(),
 });
 export type PlanSummary = z.infer<typeof PlanSummarySchema>;
+
+/** A house with several floors (each floor is a plan). The house holds the shared style. */
+export const HouseSchema = z.object({
+  id: z.string(),
+  name: z.string(),
+  createdAt: z.string(),
+  updatedAt: z.string(),
+  style: StyleProfileSchema,
+  /** Floor plan ids, in order (e.g. upstairs first). */
+  floors: z.array(z.string()),
+});
+export type House = z.infer<typeof HouseSchema>;
+
+/** A house as the editor sees it: each floor's name and rooms (so Claude can see the other floors). */
+export const HouseViewSchema = HouseSchema.extend({
+  floorPlans: z.array(z.object({
+    id: z.string(),
+    name: z.string(),
+    hasImage: z.boolean(),
+    updatedAt: z.string(),
+    rooms: z.array(z.object({ name: z.string(), type: z.string(), areaSqFt: z.number(), paint: z.string().default("") })),
+  })),
+});
+export type HouseView = z.infer<typeof HouseViewSchema>;
+
+export const HouseUpdateSchema = z.object({
+  name: z.string().max(120).optional(),
+  style: StyleProfileSchema.optional(),
+  floors: z.array(z.string()).optional(),
+});
 
 // ---- API request/response shapes ----
 
@@ -209,6 +251,8 @@ export const ShopRequestSchema = z.object({
   roomType: z.string().nullable().default(null),
   /** The room's paint, described ("walls SW 7008 Alabaster (#edeae0); …"), or "". */
   roomPaint: z.string().default(""),
+  /** What the room is for and its own styles, if set. */
+  roomStyle: RoomStyleSchema.default({ about: "", styles: [] }),
   style: StyleProfileSchema,
 });
 export type ShopRequest = z.infer<typeof ShopRequestSchema>;
@@ -222,6 +266,7 @@ export const SuggestRoomRequestSchema = z.object({
     depthIn: z.number(),
     areaSqFt: z.number(),
     paint: z.string().default(""),
+    style: RoomStyleSchema.default({ about: "", styles: [] }),
   }),
   items: z.array(
     z.object({
@@ -319,6 +364,7 @@ export const RoomContextSchema = z.object({
     outline: z.array(PointSchema),
     edges: z.array(z.object({ side: z.string(), from: PointSchema, to: PointSchema, wall: z.boolean() })),
     paint: z.string().default(""),
+    style: RoomStyleSchema.default({ about: "", styles: [] }),
   }),
   openings: z.array(z.object({
     kind: z.string(), label: z.string(), side: z.string(), x: z.number(), y: z.number(), width: z.number(),
@@ -328,6 +374,12 @@ export const RoomContextSchema = z.object({
   furniture: z.array(LocalItem.extend({ id: z.string(), status: z.string() })),
   neighbors: z.array(z.object({ name: z.string(), type: z.string(), side: z.string(), paint: z.string().default("") })),
   house: z.array(z.object({ name: z.string(), type: z.string(), areaSqFt: z.number(), paint: z.string().default("") })),
+  /** This floor's name and the house's other floors, when the plan is one floor of a house. */
+  floor: z.string().default(""),
+  otherFloors: z.array(z.object({
+    name: z.string(),
+    rooms: z.array(z.object({ name: z.string(), type: z.string(), areaSqFt: z.number(), paint: z.string().default("") })),
+  })).default([]),
   style: StyleProfileSchema,
 });
 export type RoomContext = z.infer<typeof RoomContextSchema>;

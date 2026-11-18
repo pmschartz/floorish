@@ -32,7 +32,7 @@ export function StylePanel() {
 
   return (
     <div className="inspector style-panel">
-      <p className="muted small">Used for shopping and room suggestions across the whole plan.</p>
+      <p className="muted small">The whole house's taste, used for shopping, suggestions and redesigns. A room can add what it's for and its own style: select the room.</p>
       <h3>Style</h3>
       <div className="chips">
         {STYLE_OPTIONS.map((s) => (

@@ -17,6 +17,7 @@ import { RoomEditHandles } from "./RoomEditHandles";
 import { moveRoomEdge } from "../model/roomEdit";
 import { useDetect } from "../detect/detectStore";
 import { PLAN } from "./theme";
+import { GRID_EXTENT, planPage } from "./page";
 import { ShortcutsButton } from "../panels/Shortcuts";
 
 function useHtmlImage(url: string | undefined) {
@@ -33,7 +34,6 @@ function useHtmlImage(url: string | undefined) {
   return img;
 }
 
-const GRID_EXTENT = { w: 600, h: 480 }; // inches (50' × 40') for plans without an image
 const SNAP_PX = 10; // screen pixels for snapping to existing room corners
 
 export function PlanCanvas({ issues }: { issues: Issue[] }) {
@@ -65,11 +65,12 @@ export function PlanCanvas({ issues }: { issues: Issue[] }) {
   const [spaceDown, setSpaceDown] = useState(false);
   const [shiftDown, setShiftDown] = useState(false);
 
-  // Content size in image pixels.
+  // Content size in image pixels: the image (or grid), or in clean view just around the rooms.
   const content = useMemo(() => {
     if (plan.image) return { w: plan.image.widthPx, h: plan.image.heightPx };
     return { w: GRID_EXTENT.w * (ppi ?? 2), h: GRID_EXTENT.h * (ppi ?? 2) };
   }, [plan.image, ppi]);
+  const page = useMemo(() => planPage(plan, ppi, clean), [plan, ppi, clean]);
 
   useLayoutEffect(() => {
     const el = wrapRef.current;
@@ -82,20 +83,20 @@ export function PlanCanvas({ issues }: { issues: Issue[] }) {
 
   const fit = useCallback(() => {
     const pad = 40;
-    const scale = Math.min((size.w - pad * 2) / content.w, (size.h - pad * 2) / content.h);
+    const scale = Math.min((size.w - pad * 2) / page.w, (size.h - pad * 2) / page.h);
     const s = Math.max(0.05, Math.min(scale, 8));
-    setView({ scale: s, x: (size.w - content.w * s) / 2, y: (size.h - content.h * s) / 2 });
-  }, [size.w, size.h, content.w, content.h]);
+    setView({ scale: s, x: (size.w - page.w * s) / 2 - page.x * s, y: (size.h - page.h * s) / 2 - page.y * s });
+  }, [size.w, size.h, page.x, page.y, page.w, page.h]);
 
   // Fit when a plan or its image changes (and once the container has a real size).
   const fittedFor = useRef("");
   useEffect(() => {
-    const key = `${plan.id}:${plan.image?.url ?? "grid"}:${size.w > 100}`;
+    const key = `${plan.id}:${plan.image?.url ?? "grid"}:${size.w > 100}:${clean}`;
     if (fittedFor.current !== key && size.w > 100) {
       fittedFor.current = key;
       fit();
     }
-  }, [plan.id, plan.image?.url, size.w, fit]);
+  }, [plan.id, plan.image?.url, size.w, clean, fit]);
 
   // Reset drafts when the tool changes.
   useEffect(() => {
@@ -333,7 +334,7 @@ export function PlanCanvas({ issues }: { issues: Issue[] }) {
       >
         <Layer listening={false}>
           {clean ? (
-            <Rect width={content.w} height={content.h} fill={PLAN.paper} />
+            <Rect x={page.x} y={page.y} width={page.w} height={page.h} fill={PLAN.paper} />
           ) : img ? (
             <KImage image={img} width={content.w} height={content.h} />
           ) : (

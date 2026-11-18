@@ -29,7 +29,7 @@ export function SpendMeter() {
   ].join("\n");
   return (
     <span className="spend-meter" title={detail} aria-label={detail}>
-      Claude {money(spend.today)} today
+      Claude {money(spend.today)}
     </span>
   );
 }

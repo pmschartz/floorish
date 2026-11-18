@@ -427,3 +427,41 @@ button.icon-button:hover:not(:disabled) { background: var(--brick-soft); color: 
 .toolbar .plan-name { margin-left: -8px; margin-right: 6px; }
 /* The house sits low in its 64-unit box; lift it so it centres on the plan name's capitals. */
 .toolbar .back img { position: relative; top: -2px; }
+
+/* Room style */
+.room-style { display: grid; gap: 8px; border-top: 1px solid var(--border); padding-top: 4px; }
+.room-style textarea { resize: vertical; min-height: 52px; }
+.room-style-seg { display: flex; gap: 2px; padding: 3px; background: var(--surface-sunken); border-radius: 10px; }
+.room-style-seg button { flex: 1; border-color: transparent; background: transparent; color: var(--ink-muted); padding: 4px 8px; font-size: 13px; }
+.room-style-seg button.on { background: var(--surface-raised); color: var(--ink); box-shadow: var(--shadow-sm); }
+.room-style .chips { display: flex; flex-wrap: wrap; gap: 6px; }
+
+/* ---- Houses: house name, floor tabs and + ---- */
+.floor-bar { display: flex; align-items: center; gap: 6px; margin-right: 6px; min-width: 0; }
+.floor-bar .plan-name { margin-right: 0; }
+.floor-tabs { display: flex; align-items: center; gap: 2px; padding: 3px; background: var(--surface-sunken); border-radius: 10px; }
+.floor-tab { border-color: transparent; background: transparent; color: var(--ink-muted); padding: 5px 12px; }
+.floor-tab:hover:not(:disabled) { background: rgba(255, 252, 246, 0.6); border-color: transparent; color: var(--ink); }
+.floor-tab.on { background: var(--surface-raised); color: var(--ink); box-shadow: var(--shadow-sm); cursor: default; }
+input.floor-tab.editing { width: 120px; font-weight: 600; border-color: var(--lake); cursor: text; }
+.add-floor { position: relative; }
+.floor-add { border-color: transparent; background: transparent; color: var(--ink-muted); min-width: 30px; padding: 4px 8px; font-size: 16px; line-height: 1; }
+.floor-bar > .add-floor .floor-add { border: 1px dashed var(--line-strong); }
+.floor-add:hover:not(:disabled) { background: rgba(255, 252, 246, 0.6); color: var(--ink); }
+.add-floor-menu { left: 0; right: auto; width: 260px; }
+.menu-note { margin: 4px 8px; font-size: 12px; color: var(--ink-muted); }
+/* Home: a house with its floors */
+.house-row .house-main { flex: 1; display: grid; gap: 8px; padding: 14px 16px; min-width: 0; }
+.plan-list .house-row a.house-link { padding: 0; display: grid; gap: 2px; text-decoration: none; color: inherit; }
+.house-link strong { font-family: var(--font-display); font-variation-settings: "SOFT" 100, "WONK" 0; font-size: 17px; font-weight: 600; }
+.house-floors { display: flex; flex-wrap: wrap; gap: 6px; }
+.plan-list .house-row a.floor-chip { flex: none; display: inline-block; padding: 3px 10px; border-radius: var(--radius-pill); background: var(--surface-sunken); color: var(--ink); font-size: 12px; font-weight: 600; text-decoration: none; }
+.plan-list .house-row a.floor-chip:hover { background: var(--moss-soft); color: var(--moss-strong); }
+/* Toolbar fits one line with floor tabs: icon Undo/Redo, check-mark save status, tighter gaps. */
+.toolbar { gap: 6px; flex-wrap: nowrap; }
+.tool-group button.icon-tool { padding: 5px 8px; display: grid; place-items: center; }
+.save-status.saved { display: grid; place-items: center; color: var(--moss); }
+.menu-items hr { border: none; border-top: 1px solid var(--line); margin: 4px 6px; }
+.toolbar .tool-group .menu .menu-items { right: 0; }
+.toolbar > * { flex-shrink: 0; }
+.toolbar button, .toolbar summary { white-space: nowrap; }

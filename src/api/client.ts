@@ -1,5 +1,8 @@
 import type {
   DetectRequest,
+  House,
+  HouseView,
+  StyleProfile,
   Plan,
   PlanSummary,
   RawDetection,
@@ -66,6 +69,12 @@ export const api = {
   getPlan: (id: string) => req<Plan>("GET", `/api/plans/${id}`),
   savePlan: (plan: Plan) => req<Plan>("PUT", `/api/plans/${plan.id}`, plan),
   deletePlan: (id: string) => req<void>("DELETE", `/api/plans/${id}`),
+  listHouses: () => req<House[]>("GET", "/api/houses"),
+  getHouse: (id: string) => req<HouseView>("GET", `/api/houses/${id}`),
+  createHouse: (planIds: string[], name?: string) => req<HouseView>("POST", "/api/houses", { planIds, name }),
+  updateHouse: (id: string, patch: { name?: string; style?: StyleProfile; floors?: string[] }) => req<HouseView>("PUT", `/api/houses/${id}`, patch),
+  addFloor: (id: string, floor: { name?: string; planId?: string }) => req<{ house: HouseView; planId: string }>("POST", `/api/houses/${id}/floors`, floor),
+  deleteHouse: (id: string) => req<void>("DELETE", `/api/houses/${id}`),
   uploadImage: (id: string, blob: Blob, widthPx: number, heightPx: number) => {
     const fd = new FormData();
     fd.append("image", blob, blob.type === "image/jpeg" ? "plan.jpg" : "plan.png");

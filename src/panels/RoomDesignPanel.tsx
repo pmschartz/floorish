@@ -18,6 +18,7 @@ import {
   versionItems,
 } from "../model/versions";
 import { usePlan, keepRoomResult, undo } from "../state/planStore";
+import { otherFloors as houseFloors } from "../state/houseStore";
 
 /** A room's versions, the redesign brief, and the room chat. */
 export function RoomDesignPanel({ room }: { room: Room }) {
@@ -146,7 +147,7 @@ function RedesignForm({ room }: { room: Room }) {
     try {
       const { data: res, reused } = await api.redesignRoom({
         force,
-        context: buildRoomContext(plan, room),
+        context: buildRoomContext(plan, room, houseFloors(plan.id)),
         brief,
         keepIds: fromScratch ? [] : [...keep],
         principles: fengShui ? ["feng shui"] : [],
@@ -276,7 +277,7 @@ function RoomChat({ room }: { room: Room }) {
     setError("");
     try {
       const res = await api.roomChat({
-        context: buildRoomContext(plan, r),
+        context: buildRoomContext(plan, r, houseFloors(plan.id)),
         versionName: active?.name ?? "Current",
         history: msgs.slice(-CHAT_HISTORY_SENT).map((m) => ({ role: m.role, text: m.changed.length ? `${m.text}\n(Changes made: ${m.changed.join(", ")})` : m.text })),
         message,

@@ -33,6 +33,7 @@ async function runSearch(item: Item, opts: { under: number; over: number; maxPri
       notes,
       roomType: room?.type ?? null,
       roomPaint: describePaint(room?.paint),
+      roomStyle: { about: room?.style?.about ?? "", styles: room?.style?.styles ?? [] },
       style: plan.style,
     });
     // The item may have been deleted while the search ran.

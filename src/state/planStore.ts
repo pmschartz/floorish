@@ -7,6 +7,7 @@ import { snapOpeningToWall } from "../detect/walls";
 import { addRoomCarving, removeRoomGivingSpace, resolveOverlaps } from "../model/roomEdit";
 import type { CatalogEntry } from "../catalog/furniture";
 import type { UnitSystem } from "../model/units";
+import { useHouse } from "./houseStore";
 
 export type Tool = "select" | "pan" | "calibrate" | "room" | "room-rect";
 export type SaveStatus = "saved" | "saving" | "error" | "idle";
@@ -97,7 +98,10 @@ export const usePlan = create<PlanState>()(
 
         loadPlan: async (id) => {
           const plan = await api.getPlan(id);
-          get().setPlan(plan);
+          // A floor of a house: load the house, and take its style (shared by every floor).
+          const house = plan.houseId ? await api.getHouse(plan.houseId).catch(() => null) : null;
+          useHouse.setState({ house });
+          get().setPlan(house ? { ...plan, style: house.style } : plan);
         },
         setPlan: (plan) => {
           setApiPlan(plan.id);
@@ -110,6 +114,7 @@ export const usePlan = create<PlanState>()(
         },
         closePlan: () => {
           setApiPlan("");
+          useHouse.setState({ house: null });
           set({ plan: null, selectedItemId: null, selectedRoomId: null });
           usePlan.temporal.getState().clear();
         },
@@ -265,6 +270,22 @@ usePlan.subscribe((s, prev) => {
   if (prev.plan && s.plan.id !== prev.plan.id) return;
   clearTimeout(timer);
   timer = setTimeout(flush, 600);
+});
+
+// ---- A floor of a house: its style is the house's ----
+let houseTimer: ReturnType<typeof setTimeout> | undefined;
+usePlan.subscribe((s, prev) => {
+  const house = useHouse.getState().house;
+  if (!s.plan || !prev.plan || s.plan.id !== prev.plan.id || !house || s.plan.houseId !== house.id) return;
+  if (s.plan.name !== prev.plan.name) {
+    useHouse.setState({ house: { ...house, floorPlans: house.floorPlans.map((f) => (f.id === s.plan!.id ? { ...f, name: s.plan!.name } : f)) } });
+  }
+  if (s.plan.style !== prev.plan.style) {
+    const style = s.plan.style;
+    useHouse.setState({ house: { ...useHouse.getState().house!, style } });
+    clearTimeout(houseTimer);
+    houseTimer = setTimeout(() => void api.updateHouse(house.id, { style }).catch(() => {}), 600);
+  }
 });
 
 // Warn before closing the tab if the last edit hasn't reached the server yet. (Not in tests.)

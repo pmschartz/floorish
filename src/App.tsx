@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import { useStore } from "zustand";
-import type { PlanSummary } from "../shared/schemas";
+import type { House, PlanSummary } from "../shared/schemas";
 import { api } from "./api/client";
 import { canvasApi } from "./canvas/canvasApi";
 import { PlanCanvas } from "./canvas/PlanCanvas";
@@ -17,8 +17,10 @@ import { SpendMeter } from "./panels/SpendMeter";
 import { DetectPanel } from "./panels/DetectPanel";
 import { useDetect } from "./detect/detectStore";
 import { useShortcuts } from "./panels/Shortcuts";
+import { FloorTabs } from "./panels/FloorTabs";
+import { planPage } from "./canvas/page";
 import { useGridChoice } from "./state/gridChoice";
-import { effectivePpi, flushSave, GRID_PPI, usePlan, type Tool, redo, undo } from "./state/planStore";
+import { effectivePpi, flushSave, usePlan, type Tool, redo, undo } from "./state/planStore";
 
 function useHashRoute(): string | null {
   const [id, setId] = useState(planIdFromHash);
@@ -76,9 +78,21 @@ export default function App() {
 
 function Home() {
   const [plans, setPlans] = useState<PlanSummary[] | null>(null);
+  const [houses, setHouses] = useState<House[]>([]);
   const [name, setName] = useState("");
   const [err, setErr] = useState("");
-  const load = () => api.listPlans().then(setPlans).catch((e) => setErr(e.message));
+  const load = () => Promise.all([api.listPlans(), api.listHouses()])
+    .then(([p, h]) => { setPlans(p); setHouses(h); })
+    .catch((e) => setErr(e.message));
+  const byId = new Map((plans ?? []).map((p) => [p.id, p]));
+  // Houses (newest edit first), each with its floors in order; then plans that aren't floors.
+  const houseRows = houses
+    .map((h) => ({ house: h, floors: h.floors.map((f) => byId.get(f)).filter((p): p is PlanSummary => !!p) }))
+    .filter((r) => r.floors.length)
+    .map((r) => ({ ...r, updatedAt: r.floors.reduce((m, f) => (f.updatedAt > m ? f.updatedAt : m), "") }))
+    .sort((a, b) => b.updatedAt.localeCompare(a.updatedAt));
+  const inHouse = new Set(houseRows.flatMap((r) => r.floors.map((f) => f.id)));
+  const loose = (plans ?? []).filter((p) => !inHouse.has(p.id));
   useEffect(() => {
     load();
   }, []);
@@ -103,7 +117,45 @@ function Home() {
       {err && <p className="error-text">{err}. Is the API server running?</p>}
       {plans && plans.length === 0 && <p className="muted">No plans yet. Create one to get started.</p>}
       <ul className="plan-list">
-        {plans?.map((p) => (
+        {houseRows.map(({ house, floors, updatedAt }) => (
+          <li key={house.id} className="house-row">
+            <div className="house-main">
+              <a href={`#/plan/${floors[0].id}`} className="house-link">
+                <strong>{house.name}</strong>
+                <span className="muted small">{floors.length} {floors.length === 1 ? "floor" : "floors"} · Edited {editedAt(updatedAt)}</span>
+              </a>
+              <div className="house-floors">
+                {floors.map((f) => <a key={f.id} href={`#/plan/${f.id}`} className="floor-chip">{f.name}</a>)}
+              </div>
+            </div>
+            <button
+              className="icon-button plan-delete"
+              aria-label={`Delete ${house.name}`}
+              title="Delete house"
+              onClick={async () => {
+                const ok = await confirmDialog({
+                  title: `Delete “${house.name}”?`,
+                  message: `Every floor (${floors.map((f) => f.name).join(", ")}) with its rooms, furniture and floor plan image is deleted for good. This can't be undone.`,
+                  confirmLabel: "Delete house",
+                  danger: true,
+                });
+                if (!ok) return;
+                try {
+                  await api.deleteHouse(house.id);
+                } catch (e) {
+                  setErr(e instanceof Error ? e.message : String(e));
+                }
+                load();
+              }}
+            >
+              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.75"
+                strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+                <path d="M4 7h16M10 11v6M14 11v6M6 7l1 12a2 2 0 0 0 2 2h6a2 2 0 0 0 2-2l1-12M9 7V4h6v3" />
+              </svg>
+            </button>
+          </li>
+        ))}
+        {loose.map((p) => (
           <li key={p.id}>
             <a href={`#/plan/${p.id}`}>
               <strong>{p.name}</strong>
@@ -185,7 +237,7 @@ function Editor() {
             <button role="tab" aria-selected={tab === "selected"} className={tab === "selected" ? "on" : ""} onClick={() => setTab("selected")}>
               {selectedItemId ? "Item" : selectedRoomId ? "Room" : "Plan"}
             </button>
-            <button role="tab" aria-selected={tab === "style"} className={tab === "style" ? "on" : ""} onClick={() => setTab("style")}>Style</button>
+            <button role="tab" aria-selected={tab === "style"} className={tab === "style" ? "on" : ""} onClick={() => setTab("style")}>House style</button>
             <button role="tab" aria-selected={tab === "checks"} className={tab === "checks" ? "on" : ""} onClick={() => setTab("checks")}>
               Checks {issues.length > 0 && <span className={`count ${errors ? "error" : "warning"}`}>{issues.length}</span>}
             </button>
@@ -217,7 +269,7 @@ function Toolbar() {
   const saveStatus = usePlan((s) => s.saveStatus);
   const saveError = usePlan((s) => s.saveError);
   const cleanView = usePlan((s) => s.cleanView);
-  const { setTool, setUnits, rename, setCleanView } = usePlan.getState();
+  const { setTool, setUnits, setCleanView } = usePlan.getState();
   const detectStatus = useDetect((s) => s.status);
   const canUndo = useStore(usePlan.temporal, (s) => s.pastStates.length > 0);
   const canRedo = useStore(usePlan.temporal, (s) => s.futureStates.length > 0);
@@ -226,14 +278,15 @@ function Toolbar() {
   const ppi = effectivePpi(plan);
 
   const upload = useUpload(setUploading);
-  const contentPx = plan.image ? { w: plan.image.widthPx, h: plan.image.heightPx } : { w: 600 * (ppi ?? GRID_PPI), h: 480 * (ppi ?? GRID_PPI) };
+  // What a PNG export covers: the same page the canvas shows (just around the rooms in clean view).
+  const contentPx = planPage(plan, ppi, cleanView);
 
   return (
     <header className="toolbar">
       <a href="#/" className="back" title="All plans" aria-label="All plans" onClick={() => void flushSave()}>
         <img src="/brand/floorish-mark.svg" alt="" />
       </a>
-      <input className="plan-name" value={plan.name} onChange={(e) => rename(e.target.value)} aria-label="Plan name" />
+      <FloorTabs />
       <div className="tool-group" role="toolbar" aria-label="Tools">
         {TOOLS.map((t) => (
           <button
@@ -266,16 +319,24 @@ function Toolbar() {
         </button>
       </div>
       <div className="tool-group">
-        <button disabled={!canUndo} title="Undo (⌘Z)" onClick={undo}>Undo</button>
-        <button disabled={!canRedo} title="Redo (⇧⌘Z)" onClick={redo}>Redo</button>
+        <button className="icon-tool" disabled={!canUndo} title="Undo (⌘Z)" aria-label="Undo" onClick={undo}>
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.75" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+            <path d="M9 14L4 9l5-5" /><path d="M4 9h10.5a5.5 5.5 0 0 1 0 11H11" />
+          </svg>
+        </button>
+        <button className="icon-tool" disabled={!canRedo} title="Redo (⇧⌘Z)" aria-label="Redo" onClick={redo}>
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.75" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+            <path d="M15 14l5-5-5-5" /><path d="M20 9H9.5a5.5 5.5 0 0 0 0 11H13" />
+          </svg>
+        </button>
       </div>
       <div className="tool-group">
-        <button onClick={() => setUnits(units === "imperial" ? "metric" : "imperial")} title="Switch units">
-          {units === "imperial" ? "ft / in" : "m / cm"}
-        </button>
-        <button onClick={() => fileRef.current?.click()} disabled={uploading}>
-          {uploading ? "Uploading…" : plan.image ? "Replace plan" : "Upload plan"}
-        </button>
+        {/* Upload stays in view until a floor has its plan; replacing it is rare, so it lives in the File menu. */}
+        {(!plan.image || uploading) && (
+          <button onClick={() => fileRef.current?.click()} disabled={uploading}>
+            {uploading ? "Uploading…" : "Upload plan"}
+          </button>
+        )}
         <input ref={fileRef} type="file" hidden accept="image/png,image/jpeg,image/webp,image/svg+xml,application/pdf"
           onChange={(e) => {
             const f = e.target.files?.[0];
@@ -283,19 +344,32 @@ function Toolbar() {
             if (f) void upload(f);
           }} />
         <details className="menu">
-          <summary>Export</summary>
+          <summary>File</summary>
           <div className="menu-items" onClick={(e) => (e.currentTarget.parentElement as HTMLDetailsElement).removeAttribute("open")}>
-            <button onClick={() => exportPng(plan, contentPx)}>Plan as PNG</button>
-            <button onClick={() => exportShoppingMarkdown(plan, units)}>Shopping list (Markdown)</button>
-            <button onClick={() => exportShoppingCsv(plan, units)}>Shopping list (CSV)</button>
+            {plan.image && <button onClick={() => fileRef.current?.click()} disabled={uploading}>Replace floor plan image…</button>}
+            <button onClick={() => exportPng(plan, contentPx)}>Export plan as PNG</button>
+            <button onClick={() => exportShoppingMarkdown(plan, units)}>Export shopping list (Markdown)</button>
+            <button onClick={() => exportShoppingCsv(plan, units)}>Export shopping list (CSV)</button>
+            <hr />
+            <button onClick={() => setUnits(units === "imperial" ? "metric" : "imperial")}>
+              Show sizes in {units === "imperial" ? "metric (m / cm)" : "feet and inches"}
+            </button>
           </div>
         </details>
       </div>
       <div className="toolbar-status">
         <SpendMeter />
-        <span className={`save-status ${saveStatus}`} title={saveError ?? undefined}>
-          {saveStatus === "saving" ? "Saving…" : saveStatus === "error" ? "Not saved" : saveStatus === "saved" ? "Saved" : ""}
-        </span>
+        {saveStatus === "saved" ? (
+          <span className="save-status saved" title="All changes saved" role="status" aria-label="All changes saved">
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+              <path d="M5 12.5l4.5 4.5L19 7.5" />
+            </svg>
+          </span>
+        ) : (
+          <span className={`save-status ${saveStatus}`} title={saveError ?? undefined} role="status">
+            {saveStatus === "saving" ? "Saving…" : saveStatus === "error" ? "Not saved" : ""}
+          </span>
+        )}
       </div>
     </header>
   );

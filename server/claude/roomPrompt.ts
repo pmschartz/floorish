@@ -1,6 +1,6 @@
 import type { RoomContext } from "../../shared/schemas";
 import { CATALOG } from "../../src/catalog/furniture";
-import { describeEntry } from "../../shared/sw";
+import { styleLines } from "./styleLines";
 
 /** Shared instructions for laying out a room (redesign and chat). */
 export const ROOM_DESIGN_RULES = `Coordinates
@@ -51,11 +51,9 @@ export function describeRoom(c: RoomContext): string {
       : "The room is empty.",
     c.room.paint ? `This room's paint (Sherwin-Williams; design around it, refer to colors by SW number and name): ${c.room.paint}` : "This room's wall color isn't recorded.",
     c.neighbors.length ? `Next to: ${c.neighbors.map((n) => `${n.name} (${n.type}) on the ${n.side}${n.paint ? `, painted ${n.paint}` : ""}`).join(", ")}` : "",
-    `Whole house: ${c.house.map((h) => `${h.name} (${h.type}, ${h.areaSqFt} sq ft${h.paint ? `; ${h.paint}` : ""})`).join(", ")}`,
-    c.style.styles.length ? `Style: ${c.style.styles.join(", ")}` : "Style: not chosen",
-    c.style.palette.length ? `Palette (Sherwin-Williams paint colors; refer to them by SW number and name, not hex): ${c.style.palette.map((p) => describeEntry(p)).join("; ")}` : "",
-    c.style.avoid ? `Avoid: ${c.style.avoid}` : "",
-    c.style.budgetNote ? `Budget: ${c.style.budgetNote}` : "",
+    `${c.floor ? `This floor (${c.floor})` : "Whole house"}: ${c.house.map((h) => `${h.name} (${h.type}, ${h.areaSqFt} sq ft${h.paint ? `; ${h.paint}` : ""})`).join(", ")}`,
+    ...c.otherFloors.map((f) => `Other floor (${f.name}): ${f.rooms.map((h) => `${h.name} (${h.type}, ${h.areaSqFt} sq ft${h.paint ? `; ${h.paint}` : ""})`).join(", ") || "no rooms yet"}`),
+    ...styleLines(c.style, c.room.style),
   ];
   return lines.filter(Boolean).join("\n");
 }

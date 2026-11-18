@@ -13,7 +13,10 @@ function sideOf(p: Point, b: ReturnType<typeof bbox>): string {
 }
 
 /** Everything Claude needs to furnish one room, in the room's own coordinates. */
-export function buildRoomContext(plan: Plan, room: Room): RoomContext {
+/** The house's other floors (name and rooms), when this plan is one floor of a house. */
+export type OtherFloors = RoomContext["otherFloors"];
+
+export function buildRoomContext(plan: Plan, room: Room, otherFloors: OtherFloors = []): RoomContext {
   const b = bbox(room.polygon);
   const loc = (p: Point) => ({ x: r1(p.x - b.minX), y: r1(p.y - b.minY) });
   const near = (i: Item, pad: number) => i.x >= b.minX - pad && i.x <= b.maxX + pad && i.y >= b.minY - pad && i.y <= b.maxY + pad;
@@ -51,12 +54,14 @@ export function buildRoomContext(plan: Plan, room: Room): RoomContext {
     });
 
   return {
-    room: { name: room.name, type: room.type, widthIn: r1(b.width), depthIn: r1(b.height), outline: room.polygon.map(loc), edges, paint: describePaint(room.paint) },
+    room: { name: room.name, type: room.type, widthIn: r1(b.width), depthIn: r1(b.height), outline: room.polygon.map(loc), edges, paint: describePaint(room.paint), style: { about: room.style?.about ?? "", styles: room.style?.styles ?? [] } },
     openings,
     fixtures: plan.items.filter((i) => i.shape === "fixture" && pointInPolygon({ x: i.x, y: i.y }, room.polygon, 0)).map(local),
     furniture: roomFurniture(plan.items, room).map((i) => ({ ...local(i), id: i.id, status: i.status })),
     neighbors,
     house: plan.rooms.map((o) => ({ name: o.name, type: o.type, areaSqFt: Math.round(polygonArea(o.polygon) / 144), paint: describePaint(o.paint, false) })),
+    floor: plan.houseId ? plan.name : "",
+    otherFloors,
     style: plan.style,
   };
 }

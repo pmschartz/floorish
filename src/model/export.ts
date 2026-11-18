@@ -16,14 +16,14 @@ function download(name: string, blob: Blob) {
 const safe = (s: string) => s.replace(/[^\w.-]+/g, "-").replace(/^-|-$/g, "") || "plan";
 
 /** Export the whole plan (not just the visible area) as a PNG. */
-export function exportPng(plan: Plan, contentPx: { w: number; h: number }) {
+export function exportPng(plan: Plan, contentPx: { x?: number; y?: number; w: number; h: number }) {
   const stage = canvasApi.stage;
   if (!stage) return;
   const prev = { scale: stage.scaleX(), x: stage.x(), y: stage.y(), w: stage.width(), h: stage.height() };
   const tr = stage.findOne("Transformer");
   tr?.hide();
   stage.scale({ x: 1, y: 1 });
-  stage.position({ x: 0, y: 0 });
+  stage.position({ x: -(contentPx.x ?? 0), y: -(contentPx.y ?? 0) });
   stage.size({ width: contentPx.w, height: contentPx.h });
   const pixelRatio = Math.min(2, 8000 / Math.max(contentPx.w, contentPx.h));
   const url = stage.toDataURL({ x: 0, y: 0, width: contentPx.w, height: contentPx.h, pixelRatio });

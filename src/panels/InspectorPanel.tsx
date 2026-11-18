@@ -11,6 +11,7 @@ import { mergeCandidates, mergeRooms, sharedWalls } from "../model/roomEdit";
 import { confirmDialog, notify } from "../ui/dialog";
 import { RoomDesignPanel } from "./RoomDesignPanel";
 import { RoomPaintPanel } from "./RoomPaintPanel";
+import { RoomStylePanel } from "./RoomStylePanel";
 import { RoomSuggestPanel } from "./RoomSuggestPanel";
 import { ShopPanel } from "./ShopPanel";
 
@@ -185,6 +186,7 @@ function RoomInspector({ room }: { room: Room }) {
           {room.polygon.length !== 4 && " overall"}
         </p>
       </div>
+      <RoomStylePanel room={room} />
       <RoomPaintPanel room={room} />
       <RoomDesignPanel room={room} />
       <RoomSuggestPanel key={room.id} room={room} />

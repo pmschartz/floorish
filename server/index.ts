@@ -1,7 +1,7 @@
 import express, { type NextFunction, type Request, type Response } from "express";
 import multer from "multer";
 import { ZodError } from "zod";
-import { DetectRequestSchema, PlanSchema, RedesignRequestSchema, RoomChatRequestSchema, ShopRequestSchema, SuggestRoomRequestSchema } from "../shared/schemas";
+import { DetectRequestSchema, HouseUpdateSchema, PlanSchema, RedesignRequestSchema, RoomChatRequestSchema, ShopRequestSchema, SuggestRoomRequestSchema } from "../shared/schemas";
 import { AiError, toAiError } from "./claude/client";
 import { detectFloorPlan } from "./claude/detectPlan";
 import { redesignRoom } from "./claude/redesignRoom";
@@ -37,12 +37,49 @@ app.get("/api/plans/:id", route(async (req, res) => res.json(await store.readPla
 app.put("/api/plans/:id", route(async (req, res) => {
   const plan = PlanSchema.parse(req.body);
   if (plan.id !== param(req, "id")) throw new AiError(400, "Plan id mismatch");
-  await store.readPlan(plan.id); // 404 if it was deleted
-  res.json(await store.writePlan(plan));
+  const stored = await store.readPlan(plan.id); // 404 if it was deleted
+  // A tab opened before this plan joined a house doesn't know it: keep the house, floor name and style.
+  const kept = stored.houseId && !plan.houseId ? { ...plan, houseId: stored.houseId, name: stored.name, style: stored.style } : plan;
+  res.json(await store.writePlan(kept));
 }));
 
 app.delete("/api/plans/:id", route(async (req, res) => {
   await store.deletePlan(param(req, "id"));
+  res.status(204).end();
+}));
+
+// ---- Houses: floors that share a style ----
+
+app.get("/api/houses", route(async (_req, res) => res.json(await store.listHouses())));
+
+app.get("/api/houses/:id", route(async (req, res) => res.json(await store.houseView(param(req, "id")))));
+
+/** Make a house from plans: { planIds, name? }. */
+app.post("/api/houses", route(async (req, res) => {
+  const planIds = Array.isArray(req.body?.planIds) ? req.body.planIds.map(String) : [];
+  if (!planIds.length) throw new AiError(400, "Choose at least one plan");
+  const house = await store.addFloors(planIds, { name: req.body?.name ? String(req.body.name).slice(0, 120) : undefined });
+  res.status(201).json(await store.houseView(house.id));
+}));
+
+app.put("/api/houses/:id", route(async (req, res) => {
+  await store.updateHouse(param(req, "id"), HouseUpdateSchema.parse(req.body));
+  res.json(await store.houseView(param(req, "id")));
+}));
+
+/** Add a floor: a new blank one ({ name }) or an existing plan ({ planId }). Returns the house and the floor's plan id. */
+app.post("/api/houses/:id/floors", route(async (req, res) => {
+  const house = await store.readHouse(param(req, "id"));
+  let planId = req.body?.planId ? String(req.body.planId) : "";
+  if (!planId) planId = (await store.createPlan(String(req.body?.name ?? "").slice(0, 120) || `Floor ${house.floors.length + 1}`)).id;
+  await store.addFloors([planId], { houseId: house.id });
+  res.status(201).json({ house: await store.houseView(house.id), planId });
+}));
+
+/** Delete a house and every floor in it. */
+app.delete("/api/houses/:id", route(async (req, res) => {
+  const house = await store.readHouse(param(req, "id"));
+  for (const f of house.floors) await store.deletePlan(f).catch(() => {});
   res.status(204).end();
 }));
 

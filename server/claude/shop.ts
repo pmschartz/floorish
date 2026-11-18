@@ -3,7 +3,7 @@ import { z } from "zod";
 import { scoreFit } from "../../shared/fit";
 import { ProductSchema, type ShopRequest, type ShopResults } from "../../shared/schemas";
 import { AiError, anthropic, FALLBACK, logUsage, MODEL } from "./client";
-import { describeEntry } from "../../shared/sw";
+import { styleLines } from "./styleLines";
 
 type Param = Anthropic.Beta.BetaMessageParam;
 
@@ -78,10 +78,8 @@ function describe(req: ShopRequest): string {
     `Acceptable size: up to ${req.toleranceOver}" larger, ideally no more than ${req.toleranceUnder}" smaller in each direction.`,
     req.roomType ? `Room: ${req.roomType}` : "",
     req.roomPaint ? `The room is painted: ${req.roomPaint}. Pick products whose colors and finishes work with these walls.` : "",
-    s.styles.length ? `Style: ${s.styles.join(", ")}` : "Style: no preference given",
-    s.palette.length ? `Color palette (Sherwin-Williams paint colors): ${s.palette.map((c) => describeEntry(c)).join("; ")}` : "",
-    s.avoid ? `Avoid: ${s.avoid}` : "",
-    req.maxPrice ? `Maximum price: $${req.maxPrice}` : s.budgetNote ? `Budget: ${s.budgetNote}` : "",
+    ...styleLines({ ...s, budgetNote: req.maxPrice ? "" : s.budgetNote }, req.roomStyle),
+    req.maxPrice ? `Maximum price: ${req.maxPrice}` : "",
     req.notes ? `Notes: ${req.notes}` : "",
   ];
   return lines.filter(Boolean).join("\n");

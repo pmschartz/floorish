@@ -22,6 +22,7 @@ function buildRequest(plan: Plan, room: Room): SuggestRoomRequest {
       depthIn: b.height,
       areaSqFt: Math.round(polygonArea(room.polygon) / 144),
       paint: describePaint(room.paint),
+      style: { about: room.style?.about ?? "", styles: room.style?.styles ?? [] },
     },
     items: inRoom.map((i) => ({
       label: i.label || i.category || "unlabeled",
