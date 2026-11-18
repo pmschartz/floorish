@@ -6,6 +6,7 @@ import { openingKind, STATUS_COLORS } from "../catalog/furniture";
 import { FixtureSymbol } from "./FixtureSymbol";
 import { armDepth, outlineLocal, snap } from "../model/geometry";
 import { formatDims, type UnitSystem } from "../model/units";
+import { PLAN } from "./theme";
 
 interface Props {
   item: Item;
@@ -30,10 +31,10 @@ function FurnitureShapeInner({ item, ppi, stageScale, units, selected, issue, dr
   const w = item.width * ppi;
   const d = item.depth * ppi;
   const colors = STATUS_COLORS[item.status];
-  const stroke = issue === "error" ? "#dc2626" : issue === "warning" ? "#ea580c" : selected ? "#111827" : colors.stroke;
+  const stroke = issue === "error" ? PLAN.brick : issue === "warning" ? PLAN.honeyInk : selected ? PLAN.lake : colors.stroke;
   const strokeWidth = (selected || issue ? 2.5 : 1.5) / stageScale;
   const dash = issue === "warning" ? [6 / stageScale, 4 / stageScale] : undefined;
-  const fill = item.category === "rug" ? "rgba(168,85,247,0.12)" : colors.fill;
+  const fill = item.category === "rug" ? "rgba(233,205,178,0.45)" : colors.fill;
 
   const handleDragEnd = (e: Konva.KonvaEventObject<DragEvent>) => {
     const free = e.evt.altKey;
@@ -73,7 +74,7 @@ function FurnitureShapeInner({ item, ppi, stageScale, units, selected, issue, dr
     case "door": {
       // Leaf drawn open at 90°, hinged at the left end (right if flipped), swinging toward the front.
       const hx = item.flip ? w / 2 : -w / 2;
-      const ink = clean && !selected && !issue ? "#3a3a3a" : stroke;
+      const ink = clean && !selected && !issue ? PLAN.wall : stroke;
       if (item.category === "double door") {
         // Two leaves, hinged at either end, meeting in the middle.
         const r = w / 2;
@@ -108,8 +109,8 @@ function FurnitureShapeInner({ item, ppi, stageScale, units, selected, issue, dr
       body = clean ? (
         <>
           <Rect x={-w / 2} y={-d / 2} width={w} height={d} fill="#fff" />
-          <Line points={[-w / 2, -d / 2, w / 2, -d / 2]} stroke={selected || issue ? stroke : "#3a3a3a"} strokeWidth={1.2 / stageScale} />
-          <Line points={[-w / 2, d / 2, w / 2, d / 2]} stroke={selected || issue ? stroke : "#3a3a3a"} strokeWidth={1.2 / stageScale} />
+          <Line points={[-w / 2, -d / 2, w / 2, -d / 2]} stroke={selected || issue ? stroke : PLAN.wall} strokeWidth={1.2 / stageScale} />
+          <Line points={[-w / 2, d / 2, w / 2, d / 2]} stroke={selected || issue ? stroke : PLAN.wall} strokeWidth={1.2 / stageScale} />
           <Line points={[-w / 2, 0, w / 2, 0]} stroke="#7a8a99" strokeWidth={1 / stageScale} />
           {selected && <Rect x={-w / 2} y={-d / 2} width={w} height={d} stroke={stroke} strokeWidth={strokeWidth} />}
         </>
@@ -122,7 +123,7 @@ function FurnitureShapeInner({ item, ppi, stageScale, units, selected, issue, dr
       break;
     case "opening": {
       const kind = openingKind(item);
-      const ink = clean && !selected && !issue ? "#3a3a3a" : stroke;
+      const ink = clean && !selected && !issue ? PLAN.wall : stroke;
       const lw = 1.3 / stageScale;
       // The gap in the wall, then the door's symbol inside it.
       const gap = clean ? (
@@ -164,7 +165,7 @@ function FurnitureShapeInner({ item, ppi, stageScale, units, selected, issue, dr
     case "fixture":
       body = (
         <FixtureSymbol kind={item.category} w={w} d={d} s={stageScale} clean={!!clean}
-          stroke={selected || issue ? stroke : clean ? "#4a4744" : "#6b6b72"} />
+          stroke={selected || issue ? stroke : clean ? PLAN.wall : PLAN.inkMuted} />
       );
       break;
     default:
@@ -208,7 +209,8 @@ function FurnitureShapeInner({ item, ppi, stageScale, units, selected, issue, dr
           verticalAlign="middle"
           fontSize={fontSize}
           lineHeight={1.25}
-          fill="#1f2937"
+          fill={PLAN.ink}
+          fontFamily={PLAN.font}
           listening={false}
           wrap="char"
           ellipsis

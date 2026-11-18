@@ -16,6 +16,7 @@ import { RoomLabels } from "./RoomLabels";
 import { RoomEditHandles } from "./RoomEditHandles";
 import { moveRoomEdge } from "../model/roomEdit";
 import { useDetect } from "../detect/detectStore";
+import { PLAN } from "./theme";
 
 function useHtmlImage(url: string | undefined) {
   const [img, setImg] = useState<HTMLImageElement | null>(null);
@@ -298,7 +299,7 @@ export function PlanCanvas({ issues }: { issues: Issue[] }) {
     return { px: len * pxPerIn, label: formatLength(len, units) };
   }, [ppi, view.scale, units]);
 
-  const draftColor = tool === "calibrate" ? "#db2777" : "#0d9488";
+  const draftColor = tool === "calibrate" ? PLAN.brick : PLAN.moss;
   const s = view.scale;
 
   return (
@@ -331,7 +332,7 @@ export function PlanCanvas({ issues }: { issues: Issue[] }) {
       >
         <Layer listening={false}>
           {clean ? (
-            <Rect width={content.w} height={content.h} fill="#fff" />
+            <Rect width={content.w} height={content.h} fill={PLAN.paper} />
           ) : img ? (
             <KImage image={img} width={content.w} height={content.h} />
           ) : (
@@ -358,8 +359,8 @@ export function PlanCanvas({ issues }: { issues: Issue[] }) {
                 const z = clearanceZone(selected, r.side, r.dist);
                 return (
                   <Line key={r.side} points={z.flatMap((p) => [p.x * ppi, p.y * ppi])} closed
-                    fill={blocked ? "rgba(239,68,68,0.12)" : "rgba(16,185,129,0.12)"}
-                    stroke={blocked ? "#ef4444" : "#10b981"} strokeWidth={1 / s} dash={[4 / s, 3 / s]} />
+                    fill={blocked ? "rgba(166,63,41,0.12)" : "rgba(62,106,75,0.12)"}
+                    stroke={blocked ? PLAN.brick : PLAN.moss} strokeWidth={1 / s} dash={[4 / s, 3 / s]} />
                 );
               })}
             </Group>
@@ -389,8 +390,9 @@ export function PlanCanvas({ issues }: { issues: Issue[] }) {
             flipEnabled={false}
             ignoreStroke
             anchorSize={8}
-            borderStroke="#111827"
-            anchorStroke="#111827"
+            borderStroke={PLAN.lake}
+            anchorStroke={PLAN.lake}
+            anchorCornerRadius={2}
             boundBoxFunc={(oldBox, newBox) => (newBox.width < 4 || newBox.height < 4 ? oldBox : newBox)}
           />
         </Layer>
@@ -471,14 +473,14 @@ function GridBackground({ w, h, ppi, scale }: { w: number; h: number; ppi: numbe
   const lines: React.ReactNode[] = [];
   const step = 12 * ppi; // 1 ft
   for (let x = 0, i = 0; x <= w + 0.1; x += step, i++) {
-    lines.push(<Line key={`v${i}`} points={[x, 0, x, h]} stroke={i % 5 === 0 ? "#cbd5e1" : "#e2e8f0"} strokeWidth={1 / scale} />);
+    lines.push(<Line key={`v${i}`} points={[x, 0, x, h]} stroke={i % 5 === 0 ? PLAN.gridMajor : PLAN.grid} strokeWidth={1 / scale} />);
   }
   for (let y = 0, i = 0; y <= h + 0.1; y += step, i++) {
-    lines.push(<Line key={`h${i}`} points={[0, y, w, y]} stroke={i % 5 === 0 ? "#cbd5e1" : "#e2e8f0"} strokeWidth={1 / scale} />);
+    lines.push(<Line key={`h${i}`} points={[0, y, w, y]} stroke={i % 5 === 0 ? PLAN.gridMajor : PLAN.grid} strokeWidth={1 / scale} />);
   }
   return (
     <>
-      <Rect width={w} height={h} fill="#fff" />
+      <Rect width={w} height={h} fill={PLAN.floor} />
       {lines}
     </>
   );

@@ -2,6 +2,7 @@ import { Circle, Group, Line } from "react-konva";
 import type { Point, Room } from "../../shared/schemas";
 import type { UnitSystem } from "../model/units";
 import { paintSegments } from "../model/paint";
+import { PLAN } from "./theme";
 
 const HUES = [210, 150, 30, 280, 0, 180, 60, 330];
 
@@ -46,18 +47,19 @@ export function RoomLayer({ rooms, ppi, stageScale, units, selectedRoomId, inter
 }
 
 const TYPE_FILL: Record<Room["type"], string> = {
-  bedroom: "#f4dcc9",
-  bath: "#d6e8ee",
-  kitchen: "#efe8dc",
-  living: "#f3eee7",
-  dining: "#f3eee7",
-  office: "#e6ecdc",
-  closet: "#ebe7e1",
-  laundry: "#d9e9e6",
-  hall: "#f3eee7",
-  entry: "#f3eee7",
-  garage: "#ebe7e0",
-  other: "#f0ece6",
+  // Warm Floorish tints: walnut for bedrooms, lake for wet rooms, honey for the kitchen, moss for work.
+  bedroom: "#f2e1d0",
+  bath: "#dde9f0",
+  kitchen: "#f5e9cf",
+  living: "#f6efe3",
+  dining: "#f6efe3",
+  office: "#e3ebdc",
+  closet: "#ece5d8",
+  laundry: "#dfe9e9",
+  hall: "#f6efe3",
+  entry: "#f6efe3",
+  garage: "#e9e3d8",
+  other: "#f3ece0",
 };
 
 /**
@@ -118,7 +120,7 @@ export function CleanRoomLayer({ rooms, ppi, stageScale, units, selectedRoomId, 
             points={room.polygon.flatMap((p) => [p.x * ppi, p.y * ppi])}
             closed
             fill={TYPE_FILL[room.type] ?? TYPE_FILL.other}
-            stroke={selected ? "#2f6f5e" : undefined}
+            stroke={selected ? PLAN.lake : undefined}
             strokeWidth={2.5 / stageScale}
             listening={interactive}
             onClick={(e) => {
@@ -131,7 +133,7 @@ export function CleanRoomLayer({ rooms, ppi, stageScale, units, selectedRoomId, 
       })}
       {rooms.flatMap((room) =>
         roomWalls(room, wallThickness).map((pts, i) => (
-          <Line key={`wall-${room.id}-${i}`} points={pts.map((v) => v * ppi)} closed fill="#2b2b2b" listening={false} />
+          <Line key={`wall-${room.id}-${i}`} points={pts.map((v) => v * ppi)} closed fill={PLAN.wall} listening={false} />
         )),
       )}
     </>

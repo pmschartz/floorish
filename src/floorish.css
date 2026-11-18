@@ -1,0 +1,61 @@
+/* Floorish design system: fonts and tokens (Daylight theme). Values from the Floorish tokens. */
+
+@font-face { font-family: "Fraunces"; src: url("/fonts/Fraunces-Variable.woff2") format("woff2"); font-weight: 100 900; font-style: normal; font-display: swap; }
+@font-face { font-family: "Figtree"; src: url("/fonts/Figtree-Variable.woff2") format("woff2"); font-weight: 300 900; font-style: normal; font-display: swap; }
+@font-face { font-family: "Figtree"; src: url("/fonts/Figtree-Variable-Italic.woff2") format("woff2"); font-weight: 300 900; font-style: italic; font-display: swap; }
+@font-face { font-family: "IBM Plex Mono"; src: url("/fonts/IBMPlexMono-Regular.woff2") format("woff2"); font-weight: 400; font-style: normal; font-display: swap; }
+@font-face { font-family: "IBM Plex Mono"; src: url("/fonts/IBMPlexMono-Medium.woff2") format("woff2"); font-weight: 500; font-style: normal; font-display: swap; }
+
+:root {
+  /* Surfaces and lines */
+  --surface: #f7f2e9;
+  --surface-raised: #fffcf6;
+  --surface-sunken: #efe7d9;
+  --line: #e4d9c6;
+  --line-strong: #8a7a63;
+  /* Text */
+  --ink: #2a2119;
+  --ink-muted: #6b5d4f;
+  --ink-faint: #a99b88;
+  /* Moss: brand, the main action, success */
+  --moss: #3e6a4b;
+  --moss-strong: #2f5239;
+  --moss-soft: #e0eadc;
+  --on-moss: #fffcf6;
+  /* Walnut: shopping and prices */
+  --walnut: #8a5a3b;
+  --walnut-soft: #f2e4d5;
+  /* Lake: selection, focus, info */
+  --lake: #356b8c;
+  --lake-soft: #dde9f0;
+  /* Honey: suggestions, warnings */
+  --honey: #e3a935;
+  --honey-soft: #f8ebcc;
+  --honey-ink: #7a5410;
+  /* Brick: errors, things that don't fit */
+  --brick: #a63f29;
+  --brick-soft: #f6e0d8;
+  --on-brick: #fffcf6;
+  --focus-ring: #356b8c;
+  --scrim: rgba(42, 33, 25, 0.45);
+  /* Plan canvas */
+  --plan-floor: #fbf6ec;
+  --plan-grid: #e9dfcd;
+  --plan-wall: #3b2f25;
+
+  /* Type */
+  --font-display: "Fraunces", Georgia, "Times New Roman", serif;
+  --font-sans: "Figtree", system-ui, -apple-system, "Segoe UI", sans-serif;
+  --font-mono: "IBM Plex Mono", ui-monospace, Menlo, monospace;
+
+  /* Shape and depth */
+  --radius-xs: 4px;
+  --radius-sm: 8px;
+  --radius-md: 12px;
+  --radius-lg: 20px;
+  --radius-pill: 999px;
+  --shadow-sm: 0 1px 2px rgba(58, 40, 24, 0.08), 0 1px 1px rgba(58, 40, 24, 0.04);
+  --shadow-md: 0 6px 16px rgba(58, 40, 24, 0.10), 0 1px 3px rgba(58, 40, 24, 0.06);
+  --shadow-lg: 0 18px 40px rgba(58, 40, 24, 0.18), 0 4px 10px rgba(58, 40, 24, 0.08);
+  --ease: 150ms ease;
+}

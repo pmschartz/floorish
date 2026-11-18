@@ -81,8 +81,9 @@ function Home() {
   return (
     <div className="home">
       <header>
-        <h1>House Planner</h1>
-        <p className="muted">Upload a floor plan, lay out what you own, and find furniture that fits.</p>
+        <img className="brand-lockup" src="/brand/floorish-lockup.svg" alt="Floorish" />
+        <h1>Make room for what you love.</h1>
+        <p className="tagline">Upload a floor plan, lay out what you own, and find furniture that fits.</p>
       </header>
       <form className="new-plan" onSubmit={create}>
         <input value={name} onChange={(e) => setName(e.target.value)} placeholder="Plan name, e.g. Maple St house" aria-label="Plan name" />
@@ -213,7 +214,9 @@ function Toolbar() {
 
   return (
     <header className="toolbar">
-      <a href="#/" className="back" title="All plans" onClick={() => void flushSave()}>←</a>
+      <a href="#/" className="back" title="All plans" aria-label="All plans" onClick={() => void flushSave()}>
+        <img src="/brand/floorish-mark.svg" alt="" />
+      </a>
       <input className="plan-name" value={plan.name} onChange={(e) => rename(e.target.value)} aria-label="Plan name" />
       <div className="tool-group" role="toolbar" aria-label="Tools">
         {TOOLS.map((t) => (

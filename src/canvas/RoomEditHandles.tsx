@@ -4,6 +4,7 @@ import { Group, Line, Rect } from "react-konva";
 import type { Point, Room } from "../../shared/schemas";
 import { roomEdges } from "../detect/walls";
 import { useWallHover } from "../panels/RoomWalls";
+import { PLAN } from "./theme";
 
 /** Within this many inches, a dragged wall snaps to another room's wall line. */
 const SNAP_IN = 4;
@@ -58,10 +59,10 @@ export function RoomEditHandles({ room, rooms, ppi, stageScale, onMoveEdge }: {
       {hover != null && hover < room.polygon.length && (
         // The wall hovered in the room panel's list.
         <Line points={[room.polygon[hover].x * ppi, room.polygon[hover].y * ppi, room.polygon[(hover + 1) % room.polygon.length].x * ppi, room.polygon[(hover + 1) % room.polygon.length].y * ppi]}
-          stroke="#f59e0b" strokeWidth={5 / s} lineCap="round" listening={false} />
+          stroke={PLAN.honey} strokeWidth={5 / s} lineCap="round" listening={false} />
       )}
       {preview && (
-        <Line points={preview.flatMap((p) => [p.x * ppi, p.y * ppi])} closed stroke="#2f6f5e"
+        <Line points={preview.flatMap((p) => [p.x * ppi, p.y * ppi])} closed stroke={PLAN.moss}
           strokeWidth={2 / s} dash={[6 / s, 4 / s]} listening={false} />
       )}
       {mine.map((e) => {
@@ -81,8 +82,8 @@ export function RoomEditHandles({ room, rooms, ppi, stageScale, onMoveEdge }: {
             width={w}
             height={h}
             cornerRadius={short / 2}
-            fill="#2f6f5e"
-            stroke="#ffffff"
+            fill={PLAN.moss}
+            stroke={PLAN.paper}
             strokeWidth={2 / s}
             shadowColor="#000"
             shadowOpacity={0.15}
