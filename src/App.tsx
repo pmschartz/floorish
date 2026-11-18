@@ -30,6 +30,15 @@ function useHashRoute(): string | null {
 
 const planIdFromHash = () => window.location.hash.match(/^#\/plan\/([\w-]+)/)?.[1] ?? null;
 
+/** "Today, 11:01 AM", "Nov 18, 11:01 AM", or with the year when it isn't this year. */
+function editedAt(iso: string): string {
+  const d = new Date(iso), now = new Date();
+  const time = d.toLocaleTimeString(undefined, { hour: "numeric", minute: "2-digit" });
+  if (d.toDateString() === now.toDateString()) return `today, ${time}`;
+  const date = d.toLocaleDateString(undefined, { month: "short", day: "numeric", ...(d.getFullYear() === now.getFullYear() ? {} : { year: "numeric" }) });
+  return `${date}, ${time}`;
+}
+
 export default function App() {
   const planId = useHashRoute();
   const plan = usePlan((s) => s.plan);
@@ -96,10 +105,12 @@ function Home() {
           <li key={p.id}>
             <a href={`#/plan/${p.id}`}>
               <strong>{p.name}</strong>
-              <span className="muted small">Edited {new Date(p.updatedAt).toLocaleString()}{p.hasImage ? "" : " · no floor plan"}</span>
+              <span className="muted small">Edited {editedAt(p.updatedAt)}{p.hasImage ? "" : " · no floor plan"}</span>
             </a>
             <button
-              className="link danger"
+              className="icon-button plan-delete"
+              aria-label={`Delete ${p.name}`}
+              title="Delete plan"
               onClick={async () => {
                 const ok = await confirmDialog({
                   title: `Delete “${p.name}”?`,
@@ -116,7 +127,10 @@ function Home() {
                 load();
               }}
             >
-              Delete
+              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.75"
+                strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+                <path d="M4 7h16M10 11v6M14 11v6M6 7l1 12a2 2 0 0 0 2 2h6a2 2 0 0 0 2-2l1-12M9 7V4h6v3" />
+              </svg>
             </button>
           </li>
         ))}
