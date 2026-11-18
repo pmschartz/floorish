@@ -2,7 +2,7 @@ import { describe, expect, it } from "vitest";
 import type { Item } from "../../shared/schemas";
 import { rectLocal } from "../model/geometry";
 import { defaultOpts, findWallBand, type Mask } from "./snap";
-import { connectWalls, fitOpeningsToWalls } from "./walls";
+import { alignWalls, connectWalls, fitOpeningsToWalls, simplifyOutline } from "./walls";
 
 /** A 1000×1000 image with one horizontal wall at rows [y0, y1], drawn as described. */
 function drawWall(kind: "solid" | "outlined" | "double", y0: number, y1: number) {
@@ -74,5 +74,24 @@ describe("open edges", () => {
   it("become outside walls when no room is on the other side", () => {
     const lone = { polygon: rectLocal(0, 0, 100, 100), walls: [7, 7, null, 7] };
     expect(connectWalls([lone]).walls[0]).toEqual([7, 7, 7, 7]);
+  });
+});
+
+describe("lining up walls", () => {
+  it("puts rooms along the same wall on one straight line", () => {
+    const rooms = [
+      { polygon: rectLocal(46, 0, 200, 170), walls: [7, 7, 7, 7] }, // bedroom (longest wall)
+      { polygon: rectLocal(40, 170, 200, 212), walls: [2, 2, 2, 7] }, // closet, 6" out
+      { polygon: rectLocal(51, 217, 200, 353), walls: [5, 5, 5, 7] }, // utility, 5" in
+    ];
+    const lefts = alignWalls(rooms).map((r) => Math.min(...r.polygon.map((p) => p.x)));
+    expect(lefts).toEqual([46, 46, 46]);
+  });
+
+  it("leaves real steps alone and keeps a corner where the wall thickness changes", () => {
+    const step = [{ polygon: rectLocal(0, 0, 100, 100), walls: [5, 5, 5, 5] }, { polygon: rectLocal(0, 100, 130, 200), walls: [5, 5, 5, 5] }];
+    expect(Math.max(...alignWalls(step)[1].polygon.map((p) => p.x))).toBe(130); // 30" step stays
+    const out = simplifyOutline([{ x: 0, y: 0 }, { x: 0, y: 50 }, { x: 0, y: 100 }, { x: 100, y: 100 }, { x: 100, y: 0 }], [7, 2, 5, 5, 5]);
+    expect(out.polygon).toHaveLength(5); // 7" and 2" walls meet at (0,50): corner kept
   });
 });

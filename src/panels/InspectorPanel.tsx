@@ -5,6 +5,8 @@ import { formatArea, formatLength } from "../model/units";
 import { effectivePpi, usePlan } from "../state/planStore";
 import { LengthInput } from "./LengthInput";
 import { RemeasureWalls } from "./RemeasureWalls";
+import { mergeCandidates, mergeRooms } from "../model/roomEdit";
+import { confirmDialog, notify } from "../ui/dialog";
 import { RoomDesignPanel } from "./RoomDesignPanel";
 import { RoomPaintPanel } from "./RoomPaintPanel";
 import { RoomSuggestPanel } from "./RoomSuggestPanel";
@@ -154,6 +156,8 @@ function RoomInspector({ room }: { room: Room }) {
         {formatArea(polygonArea(room.polygon), units)} · {formatLength(b.width, units)} × {formatLength(b.height, units)}
         {room.polygon.length !== 4 && <span className="muted"> (outer size)</span>}
       </p>
+      <p className="muted small">Drag the handles on the room's walls to move them; they snap to other rooms' walls.</p>
+      <MergeRoom room={room} />
       <RoomPaintPanel room={room} />
       <button className="danger" onClick={() => removeRoom(room.id)}>Delete room</button>
       <RoomDesignPanel room={room} />
@@ -188,5 +192,33 @@ function PlanOverview() {
         <li><kbd>⌘Z</kbd> undo · <kbd>⇧⌘Z</kbd> redo · <kbd>Alt</kbd> while dragging turns off snapping</li>
       </ul>
     </div>
+  );
+}
+
+/** Merge this room with a neighbour (e.g. fold a closet into its bedroom, or join two halves of a bath). */
+function MergeRoom({ room }: { room: Room }) {
+  const plan = usePlan((s) => s.plan)!;
+  const candidates = mergeCandidates(plan, room.id);
+  if (!candidates.length) return null;
+  return (
+    <label className="field">
+      <span>Merge with</span>
+      <select value="" onChange={async (e) => {
+        const other = candidates.find((r) => r.id === e.target.value);
+        if (!other) return;
+        const ok = await confirmDialog({
+          title: `Merge “${other.name}” into “${room.name}”?`,
+          message: `They become one room called “${room.name}”, including the wall between them. Furniture stays where it is. You can undo this.`,
+          confirmLabel: "Merge rooms",
+        });
+        if (!ok) return;
+        const next = mergeRooms(usePlan.getState().plan!, room.id, other.id);
+        if (!next) return void notify("Couldn't merge these rooms", "They don't connect closely enough to make one room.");
+        usePlan.getState().applyPlan(() => next);
+      }}>
+        <option value="">Choose a neighbouring room…</option>
+        {candidates.map((r) => <option key={r.id} value={r.id}>{r.name}</option>)}
+      </select>
+    </label>
   );
 }

@@ -13,6 +13,8 @@ import { FurnitureShape } from "./FurnitureShape";
 import { CleanRoomLayer, DraftPath, PaintBands, RoomLayer } from "./RoomLayer";
 import { DetectionPreview } from "./DetectionPreview";
 import { RoomLabels } from "./RoomLabels";
+import { RoomEditHandles } from "./RoomEditHandles";
+import { moveRoomEdge } from "../model/roomEdit";
 import { useDetect } from "../detect/detectStore";
 
 function useHtmlImage(url: string | undefined) {
@@ -41,6 +43,7 @@ export function PlanCanvas({ issues }: { issues: Issue[] }) {
   const { select, updateItem, addItem, addRoom, calibrate, setTool } = usePlan.getState();
 
   const ppi = effectivePpi(plan);
+  const selectedRoom = plan.rooms.find((r) => r.id === selectedRoomId) ?? null;
   const img = useHtmlImage(plan.image?.url);
   const clean = usePlan((st) => st.cleanView) && !!ppi;
   const review = useDetect((st) => (st.status === "review" ? st : null));
@@ -414,6 +417,13 @@ export function PlanCanvas({ issues }: { issues: Issue[] }) {
             />
           )}
         </Layer>
+        {/* Drag a selected room's walls in or out. */}
+        {ppi && tool === "select" && !review?.proposal && selectedRoom && (
+          <Layer>
+            <RoomEditHandles room={selectedRoom} rooms={plan.rooms} ppi={ppi} stageScale={s}
+              onMoveEdge={(edge, coord) => usePlan.getState().applyPlan((p) => moveRoomEdge(p, selectedRoom.id, edge, coord))} />
+          </Layer>
+        )}
       </Stage>
 
       {scaleBar && (

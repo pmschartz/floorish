@@ -1,6 +1,6 @@
 import type { Item, Plan, Room } from "../../shared/schemas";
 import { alignOpenEdges, defaultOpts, polygonFromEdges, snapRoomEdges, type Mask } from "./snap";
-import { connectWalls, fitOpeningsToWalls } from "./walls";
+import { alignWalls, connectWalls, fitOpeningsToWalls } from "./walls";
 
 /** Edges never move further than this when re-measuring (inches): it's a tidy-up, not a redo. */
 const MAX_MOVE_IN = 10;
@@ -39,12 +39,15 @@ export function remeasureWalls(plan: Plan, mask: Mask, fill: Mask): { rooms: Roo
       if (e.axis === null || e.wall === null) return r.walls?.[i] ?? plan.wallThickness;
       return Math.round((e.wall / ppi) * 2) / 2;
     });
-    if (poly.some((p, i) => Math.hypot(p.x - r.polygon[i].x, p.y - r.polygon[i].y) > 0.5)) changed++;
     return { ...r, polygon: poly, walls };
   });
 
-  const connected = connectWalls(snappedRooms, plan.wallThickness);
-  const rooms = snappedRooms.map((r, i) => ({ ...r, walls: connected.walls[i] }));
+  // Line up walls meant to be straight (and their neighbours with them), then share walls.
+  const aligned = alignWalls(snappedRooms);
+  const connected = connectWalls(aligned, plan.wallThickness);
+  const rooms = aligned.map((r, i) => ({ ...r, walls: connected.walls[i] }));
+  changed = rooms.filter((r, i) => r.polygon.length !== plan.rooms[i].polygon.length ||
+    r.polygon.some((p, k) => Math.hypot(p.x - plan.rooms[i].polygon[k].x, p.y - plan.rooms[i].polygon[k].y) > 0.5)).length;
   const items = fitOpeningsToWalls(plan.items, rooms, connected.walls);
   return { rooms, items, wallThickness: connected.typical, changed };
 }

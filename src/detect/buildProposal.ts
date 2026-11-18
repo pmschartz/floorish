@@ -1,5 +1,5 @@
 import type { Item, Point, RawDetection, Room } from "../../shared/schemas";
-import { connectWalls, fitOpeningsToWalls } from "./walls";
+import { alignWalls, connectWalls, fitOpeningsToWalls } from "./walls";
 import { FIXTURE_LABEL } from "../catalog/furniture";
 import { bbox, pointInPolygon, toWorld } from "../model/geometry";
 import {
@@ -356,9 +356,11 @@ export function buildProposal(raw: RawDetection, factor: number, mask: Mask, pla
     polygon: polys[i].map((p) => ({ x: inch(p.x), y: inch(p.y) })),
     walls: edges[i].map((e) => (e.axis === null ? measuredWall : e.wall === null ? null : Math.round(inch(e.wall) * 2) / 2)),
   }));
-  // Walls between rooms fill the gap between them, so neighbouring rooms share one wall.
-  const connected = connectWalls(snappedRooms, measuredWall);
-  const rooms: NewRoom[] = snappedRooms.map((r, i) => ({ ...r, walls: connected.walls[i] }));
+  // Walls meant to be one straight line get lined up; walls between rooms fill the gap between
+  // them, so neighbouring rooms share one wall.
+  const aligned = alignWalls(snappedRooms);
+  const connected = connectWalls(aligned, measuredWall);
+  const rooms: NewRoom[] = aligned.map((r, i) => ({ ...r, walls: connected.walls[i] }));
   const wallThickness = connected.typical;
 
   const openings: NewItem[] = [];

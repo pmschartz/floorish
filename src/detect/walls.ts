@@ -149,3 +149,78 @@ export function fitOpeningsToWalls<T extends Pick<Item, "shape" | "x" | "y" | "w
     return axis === "h" ? { ...it, y: mid, depth: best.t } : { ...it, x: mid, depth: best.t };
   });
 }
+
+/** Walls along the same line closer than this (inches) are meant to be one straight wall. */
+const ALIGN_TOL_IN = 12;
+/** ...as long as they follow on from each other along the line (inches between their ends). */
+const ALIGN_GAP_IN = 24;
+
+/**
+ * Line up room edges that are meant to be one straight wall: edges facing the same way, a few
+ * inches apart, one after another along the line (e.g. a bedroom, its closet and the utility room
+ * all against the same outside wall). Each run moves to the line of its longest stretch. Small
+ * jogs inside one room are removed the same way.
+ */
+export function alignWalls<R extends Pick<Room, "polygon" | "walls">>(rooms: R[]): R[] {
+  const edges = roomEdges(rooms);
+  const len = (e: RoomEdge) => e.span[1] - e.span[0];
+  const groupOf = new Map<RoomEdge, RoomEdge[]>();
+  for (const e of edges) groupOf.set(e, [e]);
+  // Union edges that line up; repeat until nothing changes (runs can chain).
+  let merged = true;
+  while (merged) {
+    merged = false;
+    for (const a of edges) {
+      for (const b of edges) {
+        const ga = groupOf.get(a)!, gb = groupOf.get(b)!;
+        if (ga === gb || a.axis !== b.axis || a.inward !== b.inward) continue;
+        if (Math.abs(a.coord - b.coord) > ALIGN_TOL_IN) continue;
+        const gap = Math.max(a.span[0], b.span[0]) - Math.min(a.span[1], b.span[1]);
+        if (gap > ALIGN_GAP_IN) continue;
+        // Don't line up the two sides of a real step in one room's own outline if it's big.
+        const all = [...ga, ...gb];
+        const coords = all.map((e) => e.coord);
+        if (Math.max(...coords) - Math.min(...coords) > ALIGN_TOL_IN) continue;
+        for (const e of all) groupOf.set(e, all);
+        merged = true;
+      }
+    }
+  }
+  // Each run takes the line of its longest stretch (by total length at that line).
+  const target = new Map<RoomEdge, number>();
+  for (const g of new Set(groupOf.values())) {
+    if (g.length < 2) continue;
+    const best = [...g].sort((x, y) => len(y) - len(x))[0];
+    for (const e of g) target.set(e, best.coord);
+  }
+  return rooms.map((r, ri) => {
+    const poly = r.polygon.map((p) => ({ ...p }));
+    for (const e of edges) {
+      if (e.room !== ri || !target.has(e)) continue;
+      const t = target.get(e)!;
+      const p = poly[e.edge], q = poly[(e.edge + 1) % poly.length];
+      if (e.axis === "h") { p.y = t; q.y = t; } else { p.x = t; q.x = t; }
+    }
+    return { ...r, ...simplifyOutline(poly, r.walls) };
+  });
+}
+
+/** Drop repeated corners and corners in the middle of a straight wall (keeping walls in step). */
+export function simplifyOutline(polygon: Point[], walls?: (number | null)[]): { polygon: Point[]; walls?: (number | null)[] } {
+  let pts = polygon.map((p, i) => ({ p, w: walls ? walls[i] : undefined }));
+  const same = (a: Point, b: Point) => Math.abs(a.x - b.x) < 0.01 && Math.abs(a.y - b.y) < 0.01;
+  let changed = true;
+  while (changed && pts.length > 3) {
+    changed = false;
+    for (let i = 0; i < pts.length; i++) {
+      const prev = pts[(i - 1 + pts.length) % pts.length], cur = pts[i], next = pts[(i + 1) % pts.length];
+      // A zero-length edge (cur → next): drop cur, its edge's wall goes with it.
+      if (same(cur.p, next.p)) { pts.splice(i, 1); changed = true; break; }
+      // cur sits on the straight line prev → next with the same wall either side: drop it. (Where
+      // the wall changes, e.g. an outside wall meeting a thin divider, the corner stays.)
+      const cross = (cur.p.x - prev.p.x) * (next.p.y - prev.p.y) - (cur.p.y - prev.p.y) * (next.p.x - prev.p.x);
+      if (Math.abs(cross) < 0.01 && prev.w === cur.w) { pts.splice(i, 1); changed = true; break; }
+    }
+  }
+  return { polygon: pts.map((x) => x.p), walls: walls ? pts.map((x) => x.w as number | null) : undefined };
+}
