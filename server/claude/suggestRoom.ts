@@ -1,6 +1,7 @@
 import { betaZodOutputFormat } from "@anthropic-ai/sdk/helpers/beta/zod";
 import { SuggestRoomResponseSchema, type SuggestRoomRequest, type SuggestRoomResponse } from "../../shared/schemas";
 import { AiError, anthropic, FALLBACK, MODEL } from "./client";
+import { describeEntry } from "../../shared/sw";
 
 const SYSTEM = `You are an interior design assistant inside a home floor-planning app.
 Given one room's size, what's already in it, and the owner's style, suggest what the room is missing.
@@ -19,7 +20,7 @@ export async function suggestForRoom(req: SuggestRoomRequest): Promise<SuggestRo
       ? `Currently in the room:\n${req.items.map((i) => `- ${i.label} (${i.category || "uncategorized"}, ${Math.round(i.widthIn)}" × ${Math.round(i.depthIn)}", ${i.status}) at ${i.position}`).join("\n")}`
       : "The room is empty.",
     s.styles.length ? `Style: ${s.styles.join(", ")}` : "",
-    s.palette.length ? `Palette (hex): ${s.palette.join(", ")}` : "",
+    s.palette.length ? `Palette (Sherwin-Williams paint colors): ${s.palette.map((c) => describeEntry(c)).join("; ")}` : "",
     s.avoid ? `Avoid: ${s.avoid}` : "",
     s.budgetNote ? `Budget: ${s.budgetNote}` : "",
   ].filter(Boolean);

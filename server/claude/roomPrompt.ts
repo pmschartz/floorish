@@ -1,5 +1,6 @@
 import type { RoomContext } from "../../shared/schemas";
 import { CATALOG } from "../../src/catalog/furniture";
+import { describeEntry } from "../../shared/sw";
 
 /** Shared instructions for laying out a room (redesign and chat). */
 export const ROOM_DESIGN_RULES = `Coordinates
@@ -51,7 +52,7 @@ export function describeRoom(c: RoomContext): string {
     c.neighbors.length ? `Next to: ${c.neighbors.map((n) => `${n.name} (${n.type}) on the ${n.side}`).join(", ")}` : "",
     `Whole house: ${c.house.map((h) => `${h.name} (${h.type}, ${h.areaSqFt} sq ft)`).join(", ")}`,
     c.style.styles.length ? `Style: ${c.style.styles.join(", ")}` : "Style: not chosen",
-    c.style.palette.length ? `Palette (hex): ${c.style.palette.join(", ")}` : "",
+    c.style.palette.length ? `Palette (Sherwin-Williams paint colors; refer to them by SW number and name, not hex): ${c.style.palette.map((p) => describeEntry(p)).join("; ")}` : "",
     c.style.avoid ? `Avoid: ${c.style.avoid}` : "",
     c.style.budgetNote ? `Budget: ${c.style.budgetNote}` : "",
   ];

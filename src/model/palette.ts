@@ -1,13 +1,15 @@
 /**
  * Round out a one- or two-color palette into five colors using the 60-30-10 interior rule:
  * a light neutral (walls, big surfaces), a mid neutral, your color(s), an accent, and a dark
- * anchor (floors, frames, grounding pieces). Pure color theory: no API calls.
+ * anchor (floors, frames, grounding pieces). Pure color theory: no API calls. The colors are
+ * worked out in HSL, then each new one is matched to the nearest Sherwin-Williams color.
  */
+import { entryHex, nearestSw, swRef, findSw } from "../../shared/sw";
 
 export interface PaletteSuggestion {
   name: string;
   why: string;
-  colors: string[]; // light → dark
+  colors: string[]; // SW references ("SW 7008"), light → dark
 }
 
 interface Hsl { h: number; s: number; l: number } // h 0–360, s/l 0–100
@@ -101,10 +103,25 @@ const hueGap = (a: number, b: number) => {
 };
 
 /**
- * Suggestions for completing a palette of one or two colors. Each keeps your colors exactly
- * and adds the rest, ordered light to dark.
+ * Suggestions for completing a palette of one or two colors (SW references). Each keeps your
+ * colors exactly and adds the rest as Sherwin-Williams colors, ordered light to dark.
  */
 export function suggestPalettes(base: string[], styles: string[]): PaletteSuggestion[] {
+  return suggestHexPalettes(base.slice(0, 2).map(entryHex), styles).map((p) => {
+    const used = new Set(base.map((e) => findSw(e)?.number).filter((n): n is string => !!n));
+    const colors = p.colors.map((hex) => {
+      const yours = base.slice(0, 2).find((e) => entryHex(e).toLowerCase() === hex);
+      if (yours) return yours;
+      const sw = nearestSw(hex, used);
+      used.add(sw.number);
+      return swRef(sw);
+    });
+    return { ...p, colors: colors.sort((x, y) => lum(entryHex(y)) - lum(entryHex(x))) };
+  });
+}
+
+/** The same suggestions as plain hex colors, before matching to Sherwin-Williams. */
+export function suggestHexPalettes(base: string[], styles: string[]): PaletteSuggestion[] {
   const mine = base.slice(0, 2).map((c) => c.toLowerCase());
   if (mine.length === 0) return [];
   const mood = moodFor(styles);
@@ -122,7 +139,9 @@ export function suggestPalettes(base: string[], styles: string[]): PaletteSugges
   const build = (extra: string[]) => {
     // Your colors plus the extras, five in all, without near-duplicates, light → dark.
     const out: string[] = [...mine];
-    for (const c of extra) {
+    // Spare neutral steps, used only if the extras were too close to each other or to yours.
+    const spare = [84, 60, 48, 36, 88, 66].map((l) => hslToHex({ h: nh, s: ns + 2, l }));
+    for (const c of [...extra, ...spare]) {
       if (out.length >= 5) break;
       const h = hexToHsl(c);
       const close = out.some((o) => {

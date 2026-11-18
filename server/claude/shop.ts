@@ -3,6 +3,7 @@ import { z } from "zod";
 import { scoreFit } from "../../shared/fit";
 import { ProductSchema, type ShopRequest, type ShopResults } from "../../shared/schemas";
 import { AiError, anthropic, FALLBACK, MODEL } from "./client";
+import { describeEntry } from "../../shared/sw";
 
 type Param = Anthropic.Beta.BetaMessageParam;
 
@@ -65,7 +66,7 @@ How to work:
 - Prefer listings that state dimensions. Convert metric to inches. Never guess dimensions: use null if a listing doesn't give one.
 - Width is the side-to-side measurement facing the piece; depth is front to back.
 - Only include URLs you actually saw in search results. Never construct or guess a URL.
-- Match the user's style and palette where you can, and respect anything they want to avoid.
+- Match the user's style and palette where you can, and respect anything they want to avoid. The palette is Sherwin-Williams paint colors; when you describe how a product's color fits, refer to them by SW number and name (e.g. "pairs with SW 7008 Alabaster walls"), not hex.
 - Aim for 5 to 8 products. Fewer is fine if good matches are rare; say so in the summary.
 - When you're done searching, call report_products once. Don't write the list as text.`;
 
@@ -77,7 +78,7 @@ function describe(req: ShopRequest): string {
     `Acceptable size: up to ${req.toleranceOver}" larger, ideally no more than ${req.toleranceUnder}" smaller in each direction.`,
     req.roomType ? `Room: ${req.roomType}` : "",
     s.styles.length ? `Style: ${s.styles.join(", ")}` : "Style: no preference given",
-    s.palette.length ? `Color palette (hex): ${s.palette.join(", ")}` : "",
+    s.palette.length ? `Color palette (Sherwin-Williams paint colors): ${s.palette.map((c) => describeEntry(c)).join("; ")}` : "",
     s.avoid ? `Avoid: ${s.avoid}` : "",
     req.maxPrice ? `Maximum price: $${req.maxPrice}` : s.budgetNote ? `Budget: ${s.budgetNote}` : "",
     req.notes ? `Notes: ${req.notes}` : "",

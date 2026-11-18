@@ -1,5 +1,6 @@
 import { describe, expect, it } from "vitest";
-import { hexToHsl, hslToHex, suggestPalettes } from "./palette";
+import { findSw } from "../../shared/sw";
+import { hexToHsl, hslToHex, suggestHexPalettes, suggestPalettes } from "./palette";
 
 const HEX = /^#[0-9a-f]{6}$/;
 
@@ -11,9 +12,9 @@ describe("color conversion", () => {
   });
 });
 
-describe("suggestPalettes", () => {
+describe("suggestHexPalettes", () => {
   it("rounds out one color into three five-color palettes that keep it", () => {
-    const s = suggestPalettes(["#2E5E73"], []);
+    const s = suggestHexPalettes(["#2E5E73"], []);
     expect(s.map((p) => p.name)).toEqual(["Tonal", "Complementary", "Neutral-led"]);
     for (const p of s) {
       expect(p.colors).toHaveLength(5);
@@ -27,14 +28,14 @@ describe("suggestPalettes", () => {
   });
 
   it("keeps both of two colors", () => {
-    for (const p of suggestPalettes(["#c9a227", "#1f4e5f"], ["Mid-century modern"])) {
+    for (const p of suggestHexPalettes(["#c9a227", "#1f4e5f"], ["Mid-century modern"])) {
       expect(p.colors).toEqual(expect.arrayContaining(["#c9a227", "#1f4e5f"]));
       expect(p.colors).toHaveLength(5);
     }
   });
 
   it("adds an opposite-hue accent in the complementary palette", () => {
-    const comp = suggestPalettes(["#2e5e73"], [])[1];
+    const comp = suggestHexPalettes(["#2e5e73"], [])[1];
     const base = hexToHsl("#2e5e73").h;
     const gaps = comp.colors.map((c) => {
       const h = hexToHsl(c);
@@ -45,11 +46,30 @@ describe("suggestPalettes", () => {
   });
 
   it("follows the style: industrial neutrals are grayer than boho ones", () => {
-    const sat = (styles: string[]) => hexToHsl(suggestPalettes(["#8f6a48"], styles)[2].colors[0]).s;
+    const sat = (styles: string[]) => hexToHsl(suggestHexPalettes(["#8f6a48"], styles)[2].colors[0]).s;
     expect(sat(["Industrial"])).toBeLessThan(sat(["Boho"]));
   });
 
   it("returns nothing for an empty palette", () => {
-    expect(suggestPalettes([], [])).toEqual([]);
+    expect(suggestHexPalettes([], [])).toEqual([]);
+  });
+});
+
+describe("suggestPalettes (Sherwin-Williams)", () => {
+  it("keeps your SW colors and fills in five distinct real SW colors, light to dark", () => {
+    for (const p of suggestPalettes(["SW 6244"], ["Coastal"])) {
+      expect(p.colors).toHaveLength(5);
+      expect(p.colors).toContain("SW 6244");
+      expect(new Set(p.colors).size).toBe(5);
+      p.colors.forEach((c) => expect(findSw(c)).toBeDefined());
+      const ls = p.colors.map((c) => hexToHsl(findSw(c)!.hex).l);
+      expect([...ls].sort((a, b) => b - a)).toEqual(ls);
+    }
+  });
+
+  it("keeps both of two colors", () => {
+    for (const p of suggestPalettes(["SW 7008", "SW 7048"], [])) {
+      expect(p.colors).toEqual(expect.arrayContaining(["SW 7008", "SW 7048"]));
+    }
   });
 });

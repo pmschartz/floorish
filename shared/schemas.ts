@@ -1,4 +1,5 @@
 import { z } from "zod";
+import { toSwRef } from "./sw";
 
 // All lengths are inches. Positions are in plan inches from the image's top-left
 // (image px / pxPerInch), so furniture keeps its real size when you recalibrate.
@@ -113,7 +114,8 @@ export const STYLE_OPTIONS = [
 
 export const StyleProfileSchema = z.object({
   styles: z.array(z.string()),
-  palette: z.array(z.string()),
+  /** Sherwin-Williams references ("SW 7008"). Older plans stored hex; those become the nearest SW color. */
+  palette: z.array(z.string()).transform((a) => a.map(toSwRef)),
   avoid: z.string(),
   budgetNote: z.string(),
 });
