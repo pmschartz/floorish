@@ -1,7 +1,9 @@
 import { describe, expect, it } from "vitest";
 import { emptyStyle, type Plan } from "../../shared/schemas";
 import { rectLocal } from "./geometry";
-import { mergeCandidates, mergeRooms, moveRoomEdge, setEdgeWall, unionOutline } from "./roomEdit";
+import { addRoomCarving, mergeCandidates, mergeRooms, moveRoomEdge, removeRoomGivingSpace, resolveOverlaps, setEdgeWall, unionOutline } from "./roomEdit";
+import { polygonArea } from "./geometry";
+import { wallStandard } from "../detect/walls";
 
 const plan = (rooms: Plan["rooms"]): Plan => ({
   id: "p", name: "P", createdAt: "", updatedAt: "", image: null, pxPerInch: 2, wallThickness: 5, style: emptyStyle(), rooms, items: [],
@@ -81,5 +83,52 @@ describe("wall or open", () => {
     const opened = setEdgeWall(walled, "stairs", edge, false);
     expect(opened.rooms[0].walls).toContain(null);
     expect(Math.max(...opened.rooms[0].polygon.map((q) => q.x))).toBeCloseTo(Math.min(...opened.rooms[1].polygon.map((q) => q.x)));
+  });
+});
+
+describe("rooms make space for each other", () => {
+  const bedroom = () => ({ id: "bed", name: "Bedroom", type: "bedroom" as const, polygon: rectLocal(0, 0, 150, 120), walls: [7, 7, 7, 7] });
+  const closet = { id: "closet", name: "Closet", type: "closet" as const, polygon: rectLocal(0, 0, 60, 30) };
+  const big = { id: "big", name: "Big", type: "other" as const, polygon: rectLocal(0, 125, 150, 200), walls: [5, 7, 7, 7] };
+
+  it("cuts a closet drawn in a bedroom's corner out of the bedroom, with a wall between", () => {
+    const before = plan([bedroom()]);
+    const t = wallStandard(before.rooms).interior;
+    const p = addRoomCarving(before, closet);
+    const bed = p.rooms.find((r) => r.id === "bed")!;
+    expect(bed.polygon).toHaveLength(6);
+    expect(bed.polygon).toContainEqual({ x: 60 + t, y: 0 }); // closet's right side + an inside wall
+    expect(bed.polygon).toContainEqual({ x: 0, y: 30 + t }); // closet's bottom + an inside wall
+    expect(polygonArea(bed.polygon)).toBeCloseTo(150 * 120 - (60 + t) * (30 + t));
+    expect(p.rooms.find((r) => r.id === "closet")!.polygon).toEqual(closet.polygon);
+  });
+
+  it("leaves rooms it doesn't overlap alone", () => {
+    const p = addRoomCarving(plan([bedroom()]), { ...closet, polygon: rectLocal(300, 0, 360, 30) });
+    expect(p.rooms[0].polygon).toEqual(rectLocal(0, 0, 150, 120));
+  });
+
+  it("gives a deleted closet's space back to the bedroom", () => {
+    const p = addRoomCarving(plan([bedroom()]), closet);
+    const back = removeRoomGivingSpace(p, "closet");
+    expect(back.rooms.map((r) => r.id)).toEqual(["bed"]);
+    expect(back.rooms[0].polygon).toHaveLength(4);
+    expect(polygonArea(back.rooms[0].polygon)).toBeCloseTo(150 * 120);
+    expect(removeRoomGivingSpace(p, "closet", false).rooms[0].polygon).toHaveLength(6);
+  });
+
+  it("tidies a plan whose rooms were drawn on top of each other", () => {
+    const p = resolveOverlaps(plan([bedroom(), closet]));
+    expect(p.rooms[0].polygon).toHaveLength(6);
+    expect(resolveOverlaps(p)).toBe(p); // nothing left to do
+  });
+
+  it("moves the next room's wall along when a shared wall is dragged", () => {
+    const p = plan([bedroom(), big]);
+    const bottom = p.rooms[0].polygon.findIndex((pt, i, a) => pt.y === 120 && a[(i + 1) % 4].y === 120);
+    const out = moveRoomEdge(p, "bed", bottom, 100);
+    expect(Math.min(...out.rooms[1].polygon.map((q) => q.y))).toBeCloseTo(105); // followed, 5" wall kept
+    const pushed = moveRoomEdge(p, "bed", bottom, 160);
+    expect(Math.min(...pushed.rooms[1].polygon.map((q) => q.y))).toBeCloseTo(165);
   });
 });

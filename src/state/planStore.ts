@@ -4,6 +4,7 @@ import { create } from "zustand";
 import type { Item, Plan, Point, Room, StyleProfile } from "../../shared/schemas";
 import { api, setApiPlan } from "../api/client";
 import { snapOpeningToWall } from "../detect/walls";
+import { addRoomCarving, removeRoomGivingSpace, resolveOverlaps } from "../model/roomEdit";
 import type { CatalogEntry } from "../catalog/furniture";
 import type { UnitSystem } from "../model/units";
 
@@ -42,7 +43,8 @@ interface PlanState {
 
   addRoom: (polygon: Point[]) => Room;
   updateRoom: (id: string, patch: Partial<Room>) => void;
-  removeRoom: (id: string) => void;
+  /** Remove a room; its space goes to the room it shares the most wall with unless `giveSpace` is false. */
+  removeRoom: (id: string, giveSpace?: boolean) => void;
 
   /** Any change to the plan as one undoable step (room versions, redesigns, chat edits). */
   applyPlan: (fn: (p: Plan) => Plan) => void;
@@ -99,7 +101,10 @@ export const usePlan = create<PlanState>()(
         },
         setPlan: (plan) => {
           setApiPlan(plan.id);
-          set({ plan, selectedItemId: null, selectedRoomId: null, tool: "select", saveStatus: "saved" });
+          // Rooms drawn on top of each other (before rooms were cut out of each other) get tidied;
+          // the tidied plan then saves like any other change.
+          const tidy = resolveOverlaps(plan);
+          set({ plan: tidy, selectedItemId: null, selectedRoomId: null, tool: "select", saveStatus: "saved" });
           usePlan.temporal.getState().clear();
           lastSaved = JSON.stringify(plan);
         },
@@ -191,14 +196,15 @@ export const usePlan = create<PlanState>()(
         addRoom: (polygon) => {
           const n = (get().plan?.rooms.length ?? 0) + 1;
           const room: Room = { id: nanoid(8), name: `Room ${n}`, type: "other", polygon };
-          edit((p) => ({ ...p, rooms: [...p.rooms, room] }));
+          // Drawn over other rooms (a closet in a bedroom): cut it out of them.
+          edit((p) => addRoomCarving(p, room));
           set({ selectedRoomId: room.id, selectedItemId: null });
           return room;
         },
         updateRoom: (id, patch) =>
           edit((p) => ({ ...p, rooms: p.rooms.map((r) => (r.id === id ? { ...r, ...patch } : r)) })),
-        removeRoom: (id) => {
-          edit((p) => ({ ...p, rooms: p.rooms.filter((r) => r.id !== id) }));
+        removeRoom: (id, giveSpace = true) => {
+          edit((p) => removeRoomGivingSpace(p, id, giveSpace));
           if (get().selectedRoomId === id) set({ selectedRoomId: null });
         },
 

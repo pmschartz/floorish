@@ -6,7 +6,7 @@ import { effectivePpi, usePlan } from "../state/planStore";
 import { LengthInput } from "./LengthInput";
 import { RemeasureWalls } from "./RemeasureWalls";
 import { RoomWalls } from "./RoomWalls";
-import { mergeCandidates, mergeRooms } from "../model/roomEdit";
+import { mergeCandidates, mergeRooms, sharedWalls } from "../model/roomEdit";
 import { confirmDialog, notify } from "../ui/dialog";
 import { RoomDesignPanel } from "./RoomDesignPanel";
 import { RoomPaintPanel } from "./RoomPaintPanel";
@@ -190,9 +190,25 @@ function RoomInspector({ room }: { room: Room }) {
       <RoomWalls room={room} />
       <MergeRoom room={room} />
       <RoomPaintPanel room={room} />
-      <button className="danger" onClick={() => removeRoom(room.id)}>Delete room</button>
+      <DeleteRoom room={room} remove={removeRoom} />
       <RoomDesignPanel room={room} />
       <RoomSuggestPanel key={room.id} room={room} />
+    </div>
+  );
+}
+
+/** Delete a room, saying which room gets its space. */
+function DeleteRoom({ room, remove }: { room: Room; remove: (id: string, giveSpace?: boolean) => void }) {
+  const heir = usePlan((s) => (s.plan ? sharedWalls(s.plan, room.id)[0]?.room : undefined));
+  return (
+    <div className="delete-room">
+      <button className="danger" onClick={() => remove(room.id)}>Delete room</button>
+      {heir && (
+        <p className="muted small">
+          Its space goes to {heir.name}.{" "}
+          <button className="link" onClick={() => remove(room.id, false)}>Delete and leave it empty</button>
+        </p>
+      )}
     </div>
   );
 }
