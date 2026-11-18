@@ -465,3 +465,9 @@ input.floor-tab.editing { width: 120px; font-weight: 600; border-color: var(--la
 .toolbar .tool-group .menu .menu-items { right: 0; }
 .toolbar > * { flex-shrink: 0; }
 .toolbar button, .toolbar summary { white-space: nowrap; }
+/* The open floor's menu */
+.floor-menu-anchor { position: relative; }
+.floor-tab.on { display: inline-flex; align-items: center; gap: 4px; cursor: pointer; }
+.floor-caret { color: var(--ink-muted); margin-right: -2px; }
+.floor-menu { left: 0; right: auto; min-width: 200px; }
+.floor-menu button.danger { color: var(--brick); }

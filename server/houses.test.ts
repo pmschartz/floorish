@@ -52,6 +52,24 @@ describe("houses", () => {
   });
 });
 
+describe("reordering and removing floors", () => {
+  it("reorders floors, and takes one out as a plan of its own", async () => {
+    const a = await store.createPlan("Pine Lodge Main");
+    const b = await store.createPlan("Pine Lodge Loft");
+    const house = await store.addFloors([a.id, b.id]);
+    expect((await store.updateHouse(house.id, { floors: [b.id, a.id] })).floors).toEqual([b.id, a.id]);
+
+    const left = await store.removeFloor(house.id, b.id);
+    expect(left?.floors).toEqual([a.id]);
+    const loft = await store.readPlan(b.id);
+    expect(loft.houseId).toBeNull();
+    expect(loft.name).toBe("Pine Lodge Loft");
+
+    expect(await store.removeFloor(house.id, a.id)).toBeNull();
+    await expect(store.readHouse(house.id)).rejects.toThrow();
+  });
+});
+
 describe("other floors in room prompts", () => {
   it("names this floor and lists the rooms on the others", async () => {
     const { describeRoom } = await import("./claude/roomPrompt");

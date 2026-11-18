@@ -76,6 +76,12 @@ app.post("/api/houses/:id/floors", route(async (req, res) => {
   res.status(201).json({ house: await store.houseView(house.id), planId });
 }));
 
+/** Take a floor out of its house; it becomes a plan on its own. Returns the house (null if none left). */
+app.delete("/api/houses/:id/floors/:planId", route(async (req, res) => {
+  const house = await store.removeFloor(param(req, "id"), param(req, "planId"));
+  res.json(house ? await store.houseView(house.id) : null);
+}));
+
 /** Delete a house and every floor in it. */
 app.delete("/api/houses/:id", route(async (req, res) => {
   const house = await store.readHouse(param(req, "id"));

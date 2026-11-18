@@ -3,7 +3,7 @@ import type { PlanSummary } from "../../shared/schemas";
 import { api } from "../api/client";
 import { useHouse } from "../state/houseStore";
 import { flushSave, usePlan } from "../state/planStore";
-import { notify } from "../ui/dialog";
+import { confirmDialog, notify } from "../ui/dialog";
 
 const goTo = async (planId: string) => {
   await flushSave();
@@ -58,11 +58,75 @@ function HouseName() {
   );
 }
 
-/** The open floor's tab; double-click to rename. */
+/**
+ * The open floor's tab. Click for its menu (rename, move, take out of the house, delete);
+ * double-click to rename straight away.
+ */
 function ActiveFloor() {
   const plan = usePlan((s) => s.plan)!;
   const rename = usePlan((s) => s.rename);
+  const house = useHouse((s) => s.house)!;
   const [editing, setEditing] = useState(false);
+  const [open, setOpen] = useState(false);
+  const [busy, setBusy] = useState(false);
+  const ref = useRef<HTMLDivElement>(null);
+  const ids = house.floorPlans.map((f) => f.id);
+  const at = ids.indexOf(plan.id);
+
+  useEffect(() => {
+    if (!open) return;
+    const away = (e: MouseEvent) => { if (!ref.current?.contains(e.target as Node)) setOpen(false); };
+    const esc = (e: KeyboardEvent) => { if (e.key === "Escape") setOpen(false); };
+    window.addEventListener("mousedown", away);
+    window.addEventListener("keydown", esc);
+    return () => { window.removeEventListener("mousedown", away); window.removeEventListener("keydown", esc); };
+  }, [open]);
+
+  const act = async (fn: () => Promise<void>) => {
+    setBusy(true);
+    setOpen(false);
+    try {
+      await fn();
+    } catch (e) {
+      notify("Couldn't change the floors", e instanceof Error ? e.message : String(e));
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  const move = (by: -1 | 1) => act(async () => {
+    const order = [...ids];
+    [order[at], order[at + by]] = [order[at + by], order[at]];
+    // Show the new order straight away; the server confirms it.
+    useHouse.setState({ house: { ...house, floors: order, floorPlans: order.map((id) => house.floorPlans.find((f) => f.id === id)!) } });
+    useHouse.setState({ house: await api.updateHouse(house.id, { floors: order }) });
+  });
+
+  const takeOut = () => act(async () => {
+    const ok = await confirmDialog({
+      title: `Take “${plan.name}” out of ${house.name}?`,
+      message: `It becomes a plan of its own, called “${house.name} ${plan.name}”, with its rooms and furniture. It keeps the house style but no longer shares it. You can add it back with + on any floor.`,
+      confirmLabel: "Take it out",
+    });
+    if (!ok) return;
+    await flushSave();
+    await api.removeFloor(house.id, plan.id);
+    await usePlan.getState().loadPlan(plan.id);
+  });
+
+  const remove = () => act(async () => {
+    const ok = await confirmDialog({
+      title: `Delete the ${plan.name} floor?`,
+      message: `Its rooms, furniture and floor plan image are deleted for good. The rest of ${house.name} stays. This can't be undone.`,
+      confirmLabel: "Delete floor",
+      danger: true,
+    });
+    if (!ok) return;
+    const next = ids[at + 1] ?? ids[at - 1];
+    await api.deletePlan(plan.id);
+    window.location.hash = next ? `#/plan/${next}` : "#/";
+  });
+
   if (editing) {
     return (
       <input className="floor-tab on editing" autoFocus defaultValue={plan.name} aria-label="Floor name"
@@ -71,9 +135,28 @@ function ActiveFloor() {
     );
   }
   return (
-    <button role="tab" aria-selected="true" className="floor-tab on" title="Double-click to rename this floor" onDoubleClick={() => setEditing(true)}>
-      {plan.name}
-    </button>
+    <div className="floor-menu-anchor" ref={ref}>
+      <button role="tab" aria-selected="true" aria-haspopup="menu" aria-expanded={open} className="floor-tab on"
+        title="Floor options (double-click to rename)" disabled={busy}
+        onClick={() => setOpen(!open)} onDoubleClick={() => { setOpen(false); setEditing(true); }}>
+        {plan.name}
+        <svg className="floor-caret" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.25" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true"><path d="M6 9l6 6 6-6" /></svg>
+      </button>
+      {open && (
+        <div className="menu-items floor-menu" role="menu">
+          <button role="menuitem" onClick={() => { setOpen(false); setEditing(true); }}>Rename floor</button>
+          {ids.length > 1 && (
+            <>
+              <button role="menuitem" disabled={at <= 0} onClick={() => void move(-1)}>Move left</button>
+              <button role="menuitem" disabled={at >= ids.length - 1} onClick={() => void move(1)}>Move right</button>
+            </>
+          )}
+          <hr />
+          <button role="menuitem" onClick={() => void takeOut()}>Take out of {house.name}</button>
+          <button role="menuitem" className="danger" onClick={() => void remove()}>Delete floor…</button>
+        </div>
+      )}
+    </div>
   );
 }
 

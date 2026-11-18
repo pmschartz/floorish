@@ -215,3 +215,21 @@ export async function updateHouse(id: string, patch: { name?: string; style?: St
   }
   return writeHouse(next);
 }
+
+/**
+ * Take a floor out of its house: it becomes a plan on its own again, named "<house> <floor>",
+ * keeping the house style. A house with no floors left goes too.
+ */
+export async function removeFloor(houseId: string, planId: string): Promise<House | null> {
+  const house = await readHouse(houseId);
+  const plan = await readPlan(planId);
+  if (plan.houseId === houseId) {
+    await writePlan({ ...plan, houseId: null, name: `${house.name} ${plan.name}`.trim() });
+  }
+  const floors = house.floors.filter((f) => f !== planId);
+  if (!floors.length) {
+    await fs.rm(housePath(house.id), { force: true });
+    return null;
+  }
+  return writeHouse({ ...house, floors });
+}

@@ -74,6 +74,7 @@ export const api = {
   createHouse: (planIds: string[], name?: string) => req<HouseView>("POST", "/api/houses", { planIds, name }),
   updateHouse: (id: string, patch: { name?: string; style?: StyleProfile; floors?: string[] }) => req<HouseView>("PUT", `/api/houses/${id}`, patch),
   addFloor: (id: string, floor: { name?: string; planId?: string }) => req<{ house: HouseView; planId: string }>("POST", `/api/houses/${id}/floors`, floor),
+  removeFloor: (id: string, planId: string) => req<HouseView | null>("DELETE", `/api/houses/${id}/floors/${planId}`),
   deleteHouse: (id: string) => req<void>("DELETE", `/api/houses/${id}`),
   uploadImage: (id: string, blob: Blob, widthPx: number, heightPx: number) => {
     const fd = new FormData();
