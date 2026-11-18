@@ -71,6 +71,37 @@ export const CATALOG: CatalogEntry[] = [
   { key: "office-chair", label: "Office chair", category: "office chair", group: "Office", shape: "circle", width: 26, depth: 26, height: null },
   { key: "file-cabinet", label: "File cabinet", category: "file cabinet", group: "Office", shape: "rect", width: 15, depth: 22, height: 28, clearances: front(30, "room to open drawers") },
 
+  // Gym (the user stands or sits facing the front, +y at rotation 0)
+  { key: "treadmill", label: "Treadmill", category: "treadmill", group: "Gym", shape: "rect", width: 35, depth: 80, height: 58,
+    clearances: [{ side: "back", dist: 72, why: "safety zone behind the belt" }, { side: "left", dist: 18, why: "room to step on and off" }, { side: "right", dist: 18, why: "room to step on and off" }] },
+  { key: "exercise-bike", label: "Exercise bike", category: "exercise bike", group: "Gym", shape: "rect", width: 24, depth: 48, height: 48,
+    clearances: [{ side: "left", dist: 18, why: "room to get on and off" }, { side: "right", dist: 18, why: "room to get on and off" }] },
+  { key: "elliptical", label: "Elliptical", category: "elliptical", group: "Gym", shape: "rect", width: 30, depth: 78, height: 66,
+    clearances: [{ side: "back", dist: 24, why: "room for the pedals' stride" }, { side: "left", dist: 18, why: "room to step on and off" }, { side: "right", dist: 18, why: "room to step on and off" }] },
+  { key: "rowing-machine", label: "Rowing machine", category: "rowing machine", group: "Gym", shape: "rect", width: 24, depth: 96, height: 20,
+    clearances: [{ side: "left", dist: 24, why: "room for the handle and your arms" }, { side: "right", dist: 24, why: "room for the handle and your arms" }] },
+  { key: "weight-bench", label: "Weight bench", category: "weight bench", group: "Gym", shape: "rect", width: 24, depth: 54, height: 18,
+    clearances: [{ side: "left", dist: 30, why: "room to load weights and spot" }, { side: "right", dist: 30, why: "room to load weights and spot" }] },
+  { key: "power-rack", label: "Power rack", category: "power rack", group: "Gym", shape: "rect", width: 50, depth: 50, height: 90,
+    clearances: front(48, "room to walk the bar out") },
+  { key: "home-gym", label: "Home gym (cable)", category: "home gym", group: "Gym", shape: "rect", width: 50, depth: 80, height: 83,
+    clearances: front(36, "room to use the cables") },
+  { key: "dumbbell-rack", label: "Dumbbell rack", category: "dumbbell rack", group: "Gym", shape: "rect", width: 48, depth: 20, height: 32,
+    clearances: front(30, "room to lift weights off the rack") },
+  { key: "yoga-mat", label: "Yoga / exercise mat", category: "exercise mat", group: "Gym", shape: "rect", width: 24, depth: 72, height: null,
+    clearances: allSides(12, "room to stretch", ["rug"]) },
+  { key: "punching-bag", label: "Punching bag", category: "punching bag", group: "Gym", shape: "circle", width: 24, depth: 24, height: null,
+    clearances: allSides(30, "room for the bag to swing and to move around it") },
+
+  // Plants
+  { key: "plant-small", label: "Floor plant, small", category: "plant", group: "Plants", shape: "circle", width: 14, depth: 14, height: 30 },
+  { key: "plant-medium", label: "Floor plant, medium", category: "plant", group: "Plants", shape: "circle", width: 20, depth: 20, height: 48 },
+  { key: "plant-large", label: "Floor plant, large (fig, palm)", category: "plant", group: "Plants", shape: "circle", width: 28, depth: 28, height: 72 },
+  { key: "plant-tree", label: "Indoor tree", category: "plant", group: "Plants", shape: "circle", width: 36, depth: 36, height: 84 },
+  { key: "plant-stand", label: "Plant stand", category: "plant stand", group: "Plants", shape: "circle", width: 16, depth: 16, height: 30 },
+  { key: "planter-box", label: "Planter box", category: "planter", group: "Plants", shape: "rect", width: 36, depth: 12, height: 24 },
+  { key: "plant-shelf", label: "Plant shelf", category: "plant shelf", group: "Plants", shape: "rect", width: 36, depth: 14, height: 60 },
+
   // Rugs
   { key: "rug-5x8", label: "Rug 5×8", category: "rug", group: "Rugs", shape: "rect", width: 60, depth: 96, height: null },
   { key: "rug-8x10", label: "Rug 8×10", category: "rug", group: "Rugs", shape: "rect", width: 96, depth: 120, height: null },
