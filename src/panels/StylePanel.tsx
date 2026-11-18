@@ -1,5 +1,6 @@
 import { useState } from "react";
 import { STYLE_OPTIONS, type StyleProfile } from "../../shared/schemas";
+import { suggestPalettes } from "../model/palette";
 import { usePlan } from "../state/planStore";
 
 const PALETTES: Array<{ name: string; colors: string[] }> = [
@@ -48,6 +49,30 @@ export function StylePanel() {
         </button>
         {style.palette.length > 0 && <button className="link" onClick={() => set({ palette: [] })}>Clear</button>}
       </div>
+      {(style.palette.length === 1 || style.palette.length === 2) && (
+        <div className="palette-suggest">
+          <p className="small">
+            <strong>Round out your palette.</strong> Five colors give you walls, larger pieces, your{" "}
+            {style.palette.length === 1 ? "color" : "colors"}, an accent and a grounding dark
+            {style.styles.length ? `, tuned for ${style.styles.join(" + ")}` : ""}.
+          </p>
+          {suggestPalettes(style.palette, style.styles).map((p) => (
+            <div key={p.name} className="suggestion-row">
+              <div className="suggestion-swatches">
+                {p.colors.map((c) => (
+                  <span key={c} style={{ background: c }} title={style.palette.map((x) => x.toLowerCase()).includes(c) ? `${c} (yours)` : c}
+                    className={style.palette.map((x) => x.toLowerCase()).includes(c) ? "yours" : undefined} />
+                ))}
+              </div>
+              <div className="suggestion-text">
+                <strong>{p.name}</strong>
+                <span className="muted small">{p.why}</span>
+              </div>
+              <button onClick={() => set({ palette: p.colors })}>Use</button>
+            </div>
+          ))}
+        </div>
+      )}
       <p className="muted small">Or start from a preset:</p>
       <div className="presets">
         {PALETTES.map((p) => (
