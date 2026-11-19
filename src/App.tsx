@@ -22,15 +22,29 @@ import { planPage } from "./canvas/page";
 import { useTheme, type ThemePref } from "./state/theme";
 
 /** Light, dark, or follow the computer's setting. */
+const THEME_OPTIONS: Array<[ThemePref, string]> = [["light", "Light"], ["dark", "Dark"], ["system", "System"]];
+
+/** Sun, moon and screen icons for the appearance choices. */
+function ThemeIcon({ pref, size = 16 }: { pref: ThemePref; size?: number }) {
+  return (
+    <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.75" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+      {pref === "light" && <><circle cx="12" cy="12" r="4" /><path d="M12 2.5v2M12 19.5v2M4.6 4.6l1.4 1.4M18 18l1.4 1.4M2.5 12h2M19.5 12h2M4.6 19.4L6 18M18 6l1.4-1.4" /></>}
+      {pref === "dark" && <path d="M20 14.5A8 8 0 0 1 9.5 4a8 8 0 1 0 10.5 10.5z" />}
+      {pref === "system" && <><rect x="3" y="4" width="18" height="12" rx="2" /><path d="M8 20h8M12 16v4" /></>}
+    </svg>
+  );
+}
+
+/** Light, dark, or follow the computer's setting, as icons (home page). */
 function ThemeToggle() {
   const pref = useTheme((s) => s.pref);
   const setPref = useTheme((s) => s.setPref);
-  const options: Array<[ThemePref, string]> = [["light", "Light"], ["dark", "Dark"], ["system", "System"]];
   return (
     <div className="theme-toggle" role="radiogroup" aria-label="Appearance">
-      {options.map(([value, label]) => (
-        <button key={value} role="radio" aria-checked={pref === value} className={pref === value ? "on" : ""} onClick={() => setPref(value)}>
-          {label}
+      {THEME_OPTIONS.map(([value, label]) => (
+        <button key={value} role="radio" aria-checked={pref === value} aria-label={label} title={label}
+          className={pref === value ? "on" : ""} onClick={() => setPref(value)}>
+          <ThemeIcon pref={value} />
         </button>
       ))}
     </div>
@@ -219,6 +233,7 @@ function Editor() {
   const plan = usePlan((s) => s.plan)!;
   const units = usePlan((s) => s.units);
   const selectedItemId = usePlan((s) => s.selectedItemId);
+  const multiCount = usePlan((s) => s.selectedItemIds.length);
   const selectedRoomId = usePlan((s) => s.selectedRoomId);
   const [tab, setTab] = useState<Tab>("selected");
   const theme = useTheme((s) => s.theme);
@@ -246,6 +261,7 @@ function Editor() {
         <LibraryPanel />
         <main className="canvas-area">
           <PlanCanvas key={theme} issues={issues} />
+          {!showUpload && <ToolDock />}
           {showUpload && <UploadOverlay onGrid={() => useGridChoice.getState().choose(plan.id)} />}
         </main>
         <aside className="panel right">
@@ -254,7 +270,7 @@ function Editor() {
           ) : (<>
           <div className="tabs" role="tablist">
             <button role="tab" aria-selected={tab === "selected"} className={tab === "selected" ? "on" : ""} onClick={() => setTab("selected")}>
-              {selectedItemId ? "Item" : selectedRoomId ? "Room" : "Plan"}
+              {multiCount > 1 ? "Selection" : selectedItemId ? "Item" : selectedRoomId ? "Room" : "Plan"}
             </button>
             <button role="tab" aria-selected={tab === "style"} className={tab === "style" ? "on" : ""} onClick={() => setTab("style")}>House style</button>
             <button role="tab" aria-selected={tab === "checks"} className={tab === "checks" ? "on" : ""} onClick={() => setTab("checks")}>
@@ -281,15 +297,127 @@ const TOOLS: Array<{ id: Tool; label: string; key: string; title: string }> = [
   { id: "room-rect", label: "Rect room", key: "B", title: "Trace a rectangular room with two clicks" },
 ];
 
-function Toolbar() {
+/**
+ * The toolbar's menus (File, View): opening one closes the other, and a click anywhere else
+ * closes whichever is open.
+ */
+function useExclusiveMenus() {
+  useEffect(() => {
+    const menus = () => [...document.querySelectorAll<HTMLDetailsElement>(".toolbar details.menu")];
+    // "toggle" doesn't bubble, so listen while it's captured on the way down.
+    const onToggle = (e: Event) => {
+      const opened = e.target as HTMLDetailsElement;
+      if (!opened.matches?.(".toolbar details.menu") || !opened.open) return;
+      for (const m of menus()) if (m !== opened) m.open = false;
+    };
+    const onDown = (e: MouseEvent) => {
+      const inside = (e.target as HTMLElement)?.closest?.(".toolbar details.menu");
+      for (const m of menus()) if (m !== inside) m.open = false;
+    };
+    document.addEventListener("toggle", onToggle, true);
+    document.addEventListener("mousedown", onDown);
+    return () => { document.removeEventListener("toggle", onToggle, true); document.removeEventListener("mousedown", onDown); };
+  }, []);
+}
+
+/** View: clean view, which labels to show, and Auto-detect. */
+function ViewMenu() {
+  const plan = usePlan((s) => s.plan)!;
+  const cleanView = usePlan((s) => s.cleanView);
+  const showRoomLabels = usePlan((s) => s.showRoomLabels);
+  const showItemLabels = usePlan((s) => s.showItemLabels);
+  const units = usePlan((s) => s.units);
+  const { setCleanView, setShowRoomLabels, setShowItemLabels, setUnits } = usePlan.getState();
+  const detectStatus = useDetect((s) => s.status);
+  const themePref = useTheme((s) => s.pref);
+  const setThemePref = useTheme((s) => s.setPref);
+  const ppi = effectivePpi(plan);
+  const check = (on: boolean) => (
+    <span className="menu-check" aria-hidden>
+      {on && <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.25" strokeLinecap="round" strokeLinejoin="round"><path d="M5 12.5l4.5 4.5L19 7.5" /></svg>}
+    </span>
+  );
+  return (
+    <details className="menu">
+      <summary>View</summary>
+      <div className="menu-items view-menu" onClick={(e) => (e.currentTarget.parentElement as HTMLDetailsElement).removeAttribute("open")}>
+        <button role="menuitemcheckbox" aria-checked={cleanView} disabled={!ppi} onClick={() => setCleanView(!cleanView)}
+          title="Redraw the plan from its rooms, walls, doors and windows instead of showing the uploaded image">
+          {check(cleanView)} Clean view
+        </button>
+        <button role="menuitemcheckbox" aria-checked={showRoomLabels} onClick={() => setShowRoomLabels(!showRoomLabels)}>
+          {check(showRoomLabels)} Room names
+        </button>
+        <button role="menuitemcheckbox" aria-checked={showItemLabels} onClick={() => setShowItemLabels(!showItemLabels)}>
+          {check(showItemLabels)} Furniture labels
+        </button>
+        <hr />
+        <p className="menu-note">Sizes</p>
+        <button role="menuitemradio" aria-checked={units === "imperial"} onClick={() => setUnits("imperial")}>
+          {check(units === "imperial")} Feet and inches
+        </button>
+        <button role="menuitemradio" aria-checked={units === "metric"} onClick={() => setUnits("metric")}>
+          {check(units === "metric")} Metric (m, cm)
+        </button>
+        <hr />
+        <p className="menu-note">Appearance</p>
+        {THEME_OPTIONS.map(([value, label]) => (
+          <button key={value} role="menuitemradio" aria-checked={themePref === value} onClick={() => setThemePref(value)}>
+            {check(themePref === value)} <ThemeIcon pref={value} size={15} /> {label}
+          </button>
+        ))}
+        <hr />
+        <button disabled={!plan.image || detectStatus === "running"} onClick={() => void useDetect.getState().start()}
+          title="Find rooms, doors and windows in the floor plan automatically">
+          <span className="menu-check" aria-hidden />{detectStatus === "running" ? "Detecting…" : "Auto-detect rooms…"}
+        </button>
+      </div>
+    </details>
+  );
+}
+
+const TOOL_ICONS: Record<Tool, React.ReactNode> = {
+  select: <path d="M5 3l14 8-6 1.5L10 19z" />,
+  pan: <path d="M8 11V6a1.5 1.5 0 0 1 3 0v4M11 10V4.5a1.5 1.5 0 0 1 3 0V10M14 10V6a1.5 1.5 0 0 1 3 0v6c0 4-2.5 8-6.5 8S5 17.5 4 15l-1.2-2.6a1.4 1.4 0 0 1 2.4-1.4L8 14" />,
+  calibrate: <><path d="M3 15.5L15.5 3l5.5 5.5L8.5 21z" /><path d="M7 11.5l2 2M10 8.5l2 2M13 5.5l2 2" /></>,
+  room: <><path d="M4 8l7-4 9 5-3 11H6z" /><circle cx="4" cy="8" r="1.4" /><circle cx="17" cy="20" r="1.4" /></>,
+  "room-rect": <rect x="4" y="5" width="16" height="14" rx="1" />,
+};
+
+/** The drawing tools, floating at the bottom of the canvas. */
+function ToolDock() {
   const plan = usePlan((s) => s.plan)!;
   const tool = usePlan((s) => s.tool);
+  const setTool = usePlan((s) => s.setTool);
+  const ppi = effectivePpi(plan);
+  return (
+    <div className="tool-dock" role="toolbar" aria-label="Tools">
+      {TOOLS.map((t) => (
+        <button
+          key={t.id}
+          className={tool === t.id ? "on" : ""}
+          title={`${t.label}: ${t.title} (${t.key})`}
+          aria-label={`${t.label} (${t.key})`}
+          aria-pressed={tool === t.id}
+          disabled={(t.id === "room" || t.id === "room-rect") && !ppi || (t.id === "calibrate" && !plan.image)}
+          onClick={() => setTool(t.id)}
+        >
+          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.75" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+            {TOOL_ICONS[t.id]}
+          </svg>
+        </button>
+      ))}
+    </div>
+  );
+}
+
+function Toolbar() {
+  const plan = usePlan((s) => s.plan)!;
+  useExclusiveMenus();
   const units = usePlan((s) => s.units);
   const saveStatus = usePlan((s) => s.saveStatus);
   const saveError = usePlan((s) => s.saveError);
   const cleanView = usePlan((s) => s.cleanView);
-  const { setTool, setUnits, setCleanView } = usePlan.getState();
-  const detectStatus = useDetect((s) => s.status);
   const canUndo = useStore(usePlan.temporal, (s) => s.pastStates.length > 0);
   const canRedo = useStore(usePlan.temporal, (s) => s.futureStates.length > 0);
   const fileRef = useRef<HTMLInputElement>(null);
@@ -306,37 +434,6 @@ function Toolbar() {
         <img src="/brand/floorish-mark.svg" alt="" />
       </a>
       <FloorTabs />
-      <div className="tool-group" role="toolbar" aria-label="Tools">
-        {TOOLS.map((t) => (
-          <button
-            key={t.id}
-            className={tool === t.id ? "on" : ""}
-            title={`${t.title} (${t.key})`}
-            disabled={(t.id === "room" || t.id === "room-rect") && !ppi || (t.id === "calibrate" && !plan.image)}
-            onClick={() => setTool(t.id)}
-          >
-            {t.label}
-          </button>
-        ))}
-      </div>
-      <div className="tool-group">
-        <button
-          disabled={!plan.image || detectStatus === "running"}
-          title="Find rooms, doors and windows in the floor plan automatically"
-          onClick={() => void useDetect.getState().start()}
-        >
-          {detectStatus === "running" ? "Detecting…" : "Auto-detect"}
-        </button>
-        <button
-          className={cleanView ? "on" : ""}
-          disabled={!ppi}
-          aria-pressed={cleanView}
-          title="Redraw the plan from its rooms, walls, doors and windows instead of showing the uploaded image"
-          onClick={() => setCleanView(!cleanView)}
-        >
-          Clean view
-        </button>
-      </div>
       <div className="tool-group">
         <button className="icon-tool" disabled={!canUndo} title="Undo (⌘Z)" aria-label="Undo" onClick={undo}>
           <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.75" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
@@ -369,12 +466,9 @@ function Toolbar() {
             <button onClick={() => exportPng(plan, contentPx)}>Export plan as PNG</button>
             <button onClick={() => exportShoppingMarkdown(plan, units)}>Export shopping list (Markdown)</button>
             <button onClick={() => exportShoppingCsv(plan, units)}>Export shopping list (CSV)</button>
-            <hr />
-            <button onClick={() => setUnits(units === "imperial" ? "metric" : "imperial")}>
-              Show sizes in {units === "imperial" ? "metric (m / cm)" : "feet and inches"}
-            </button>
           </div>
         </details>
+        <ViewMenu />
       </div>
       <div className="toolbar-status">
         <SpendMeter />
@@ -496,24 +590,39 @@ function useGlobalShortcuts() {
         return;
       }
       const sel = s.plan?.items.find((i) => i.id === s.selectedItemId);
-      if (mod && k === "d" && sel) {
+      // Everything selected (one piece, or several).
+      const ids = s.selectedItemIds;
+      if (mod && k === "a" && s.plan) {
+        // Select all furniture on this floor (not the doors, windows and fixtures).
         e.preventDefault();
-        s.duplicateItem(sel.id);
+        s.selectItems(s.plan.items.filter((i) => !["door", "window", "opening", "fixture"].includes(i.shape)).map((i) => i.id), false);
+        return;
+      }
+      if (mod && k === "d" && ids.length) {
+        e.preventDefault();
+        if (ids.length > 1) s.duplicateItems(ids);
+        else if (sel) s.duplicateItem(sel.id);
         return;
       }
       if (mod) return;
-      if ((e.key === "Delete" || e.key === "Backspace") && (sel || s.selectedRoomId)) {
+      if (e.key === "Escape" && (ids.length || s.selectedRoomId) && s.tool === "select") {
+        s.select({ item: null, room: null });
+        return;
+      }
+      if ((e.key === "Delete" || e.key === "Backspace") && (ids.length || s.selectedRoomId)) {
         e.preventDefault();
-        if (sel) s.removeItem(sel.id);
+        if (ids.length > 1) s.removeItems(ids);
+        else if (sel) s.removeItem(sel.id);
         else if (s.selectedRoomId) s.removeRoom(s.selectedRoomId);
         return;
       }
-      if (sel && e.key.startsWith("Arrow")) {
+      if (ids.length && e.key.startsWith("Arrow")) {
         e.preventDefault();
         const step = e.shiftKey ? 6 : 1;
         const dx = e.key === "ArrowLeft" ? -step : e.key === "ArrowRight" ? step : 0;
         const dy = e.key === "ArrowUp" ? -step : e.key === "ArrowDown" ? step : 0;
-        s.updateItem(sel.id, { x: sel.x + dx, y: sel.y + dy });
+        if (ids.length > 1) s.moveItems(ids, dx, dy);
+        else if (sel) s.updateItem(sel.id, { x: sel.x + dx, y: sel.y + dy });
         return;
       }
       const ppi = effectivePpi(s.plan);

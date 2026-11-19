@@ -10,7 +10,8 @@ export const useShortcuts = create<{ open: boolean; toggle: () => void; close: (
 
 const GROUPS: Array<[string, Array<[string[], string]>]> = [
   ["Tools", [[["V"], "Select"], [["H"], "Pan"], [["C"], "Calibrate"], [["R"], "Draw a room"], [["B"], "Draw a rectangle room"]]],
-  ["View", [[["Space", "drag"], "Pan"], [["Scroll"], "Zoom"], [["⌘", "+"], "Zoom in"], [["⌘", "−"], "Zoom out"], [["⌘", "0"], "Fit the plan"]]],
+  ["Selecting", [[["Shift", "click"], "Add or remove a piece"], [["drag"], "Select everything in a box"], [["⌘", "A"], "Select all furniture"], [["Esc"], "Clear the selection"]]],
+  ["View", [[["Space", "drag"], "Pan"], [["Middle", "drag"], "Pan"], [["Two-finger", "scroll"], "Pan"], [["Pinch"], "Zoom (or mouse wheel)"], [["⌘", "+"], "Zoom in"], [["⌘", "−"], "Zoom out"], [["⌘", "0"], "Fit the plan"]]],
   ["Editing", [[["⌫"], "Delete"], [["⌘", "D"], "Duplicate"], [["←↑→↓"], "Nudge 1″"], [["Shift", "←↑→↓"], "Nudge 6″"], [["Alt", "drag"], "Move without snapping"]]],
   ["History", [[["⌘", "Z"], "Undo"], [["⇧", "⌘", "Z"], "Redo"]]],
 ];

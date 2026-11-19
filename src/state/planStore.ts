@@ -17,11 +17,17 @@ export const GRID_PPI = 2;
 
 interface PlanState {
   plan: Plan | null;
+  /** The piece the inspector shows; always one of selectedItemIds when set. */
   selectedItemId: string | null;
+  /** Every selected piece (shift-click or drag a box to select several). */
+  selectedItemIds: string[];
   selectedRoomId: string | null;
   tool: Tool;
   units: UnitSystem;
   cleanView: boolean;
+  /** View options: room name pills and furniture labels on the canvas. */
+  showRoomLabels: boolean;
+  showItemLabels: boolean;
   saveStatus: SaveStatus;
   saveError: string | null;
 
@@ -31,7 +37,18 @@ interface PlanState {
   setTool: (tool: Tool) => void;
   setUnits: (u: UnitSystem) => void;
   setCleanView: (on: boolean) => void;
+  setShowRoomLabels: (on: boolean) => void;
+  setShowItemLabels: (on: boolean) => void;
   select: (sel: { item?: string | null; room?: string | null }) => void;
+  /** Click a piece: select just it, or with `additive` (shift) add or remove it from the selection. */
+  pickItem: (id: string, additive: boolean) => void;
+  /** Select these pieces (a drag box), adding to the selection with `additive`. */
+  selectItems: (ids: string[], additive: boolean) => void;
+  /** Several pieces at once, each as one undoable step. */
+  moveItems: (ids: string[], dx: number, dy: number) => void;
+  updateItems: (ids: string[], patch: Partial<Item>) => void;
+  removeItems: (ids: string[]) => void;
+  duplicateItems: (ids: string[]) => void;
 
   rename: (name: string) => void;
   calibrate: (pxPerInch: number) => void;
@@ -89,10 +106,14 @@ export const usePlan = create<PlanState>()(
       return {
         plan: null,
         selectedItemId: null,
+        selectedItemIds: [],
         selectedRoomId: null,
         tool: "select",
         units: loadUnits(),
-        cleanView: pref("cleanView") === "1",
+        // Clean view is the default; the uploaded image is one click away.
+        cleanView: pref("cleanView") !== "0",
+        showRoomLabels: pref("showRoomLabels") !== "0",
+        showItemLabels: pref("showItemLabels") !== "0",
         saveStatus: "idle",
         saveError: null,
 
@@ -126,6 +147,52 @@ export const usePlan = create<PlanState>()(
         setCleanView: (cleanView) => {
           savePref("cleanView", cleanView ? "1" : "0");
           set({ cleanView });
+        },
+        setShowRoomLabels: (on) => {
+          savePref("showRoomLabels", on ? "1" : "0");
+          set({ showRoomLabels: on });
+        },
+        setShowItemLabels: (on) => {
+          savePref("showItemLabels", on ? "1" : "0");
+          set({ showItemLabels: on });
+        },
+        pickItem: (id, additive) => {
+          const ids = get().selectedItemIds;
+          if (additive) {
+            const has = ids.includes(id);
+            const next = has ? ids.filter((x) => x !== id) : [...ids, id];
+            set({ selectedItemIds: next, selectedItemId: has ? (next[next.length - 1] ?? null) : id, selectedRoomId: null });
+          } else if (ids.includes(id) && ids.length > 1) {
+            // Grabbing one of several selected pieces keeps the group (to drag them together).
+            set({ selectedItemId: id, selectedRoomId: null });
+          } else {
+            set({ selectedItemIds: [id], selectedItemId: id, selectedRoomId: null });
+          }
+        },
+        selectItems: (ids, additive) => {
+          const next = additive ? [...new Set([...get().selectedItemIds, ...ids])] : ids;
+          set({ selectedItemIds: next, selectedItemId: next[next.length - 1] ?? null, selectedRoomId: null });
+        },
+        moveItems: (ids, dx, dy) => {
+          if (!dx && !dy) return;
+          const sel = new Set(ids);
+          edit((p) => ({ ...p, items: p.items.map((i) => (sel.has(i.id) ? { ...i, x: i.x + dx, y: i.y + dy } : i)) }));
+        },
+        updateItems: (ids, patch) => {
+          const sel = new Set(ids);
+          edit((p) => ({ ...p, items: p.items.map((i) => (sel.has(i.id) ? { ...i, ...patch } : i)) }));
+        },
+        removeItems: (ids) => {
+          const sel = new Set(ids);
+          edit((p) => ({ ...p, items: p.items.filter((i) => !sel.has(i.id)) }));
+          set({ selectedItemIds: [], selectedItemId: null });
+        },
+        duplicateItems: (ids) => {
+          const sel = new Set(ids);
+          const copies = (get().plan?.items ?? []).filter((i) => sel.has(i.id)).map((src) => ({ ...src, id: nanoid(8), x: src.x + 12, y: src.y + 12 }));
+          if (!copies.length) return;
+          edit((p) => ({ ...p, items: [...p.items, ...copies] }));
+          set({ selectedItemIds: copies.map((c) => c.id), selectedItemId: copies[copies.length - 1].id, selectedRoomId: null });
         },
         select: ({ item, room }) =>
           set({
@@ -270,6 +337,24 @@ usePlan.subscribe((s, prev) => {
   if (prev.plan && s.plan.id !== prev.plan.id) return;
   clearTimeout(timer);
   timer = setTimeout(flush, 600);
+});
+
+// ---- Keep the selection list in step ----
+// Code that sets a single piece (adding, duplicating, clicking a room) only sets selectedItemId;
+// the list follows. Pieces that no longer exist drop out of the selection.
+usePlan.subscribe((s, prev) => {
+  let ids = s.selectedItemIds;
+  if (s.selectedItemId !== prev.selectedItemId && !(s.selectedItemId && ids.includes(s.selectedItemId))) {
+    ids = s.selectedItemId ? [s.selectedItemId] : [];
+  }
+  if (s.plan !== prev.plan && ids.length) {
+    const exists = new Set((s.plan?.items ?? []).map((i) => i.id));
+    if (ids.some((id) => !exists.has(id))) ids = ids.filter((id) => exists.has(id));
+  }
+  if (ids !== s.selectedItemIds) {
+    const primary = s.selectedItemId && ids.includes(s.selectedItemId) ? s.selectedItemId : ids[ids.length - 1] ?? null;
+    usePlan.setState({ selectedItemIds: ids, selectedItemId: primary });
+  }
 });
 
 // ---- A floor of a house: its style is the house's ----

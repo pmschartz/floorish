@@ -38,6 +38,8 @@ interface CanvasPalette {
   rug: string;
   status: Record<Item["status"], { fill: string; stroke: string }>;
   blockedFill: string;
+  /** The drag box for selecting several pieces. */
+  selectFill: string;
   okFill: string;
   swatchEdge: string;
   shadow: string;
@@ -66,28 +68,30 @@ const LIGHT: CanvasPalette = {
     planned: { fill: "rgba(53,107,140,0.18)", stroke: "#356b8c" },
     "to-buy": { fill: "rgba(227,169,53,0.30)", stroke: "#a7771a" },
   },
-  blockedFill: "rgba(166,63,41,0.12)", okFill: "rgba(62,106,75,0.12)",
+  blockedFill: "rgba(166,63,41,0.12)", selectFill: "rgba(53,107,140,0.10)", okFill: "rgba(62,106,75,0.12)",
   swatchEdge: "rgba(0,0,0,0.25)", shadow: "#000",
   font, mono,
 };
 
+// Evening on the canvas: near-neutral charcoal (just a touch warm) so the plan doesn't read brown,
+// walls a soft warm grey rather than bright white, and room tints kept faint.
 const DARK: CanvasPalette = {
-  wall: "#d9cfc2", floor: "#211d19", paper: "#24201b", grid: "#2e2822", gridMajor: "#3d352d",
-  ink: "#f3ece2", inkMuted: "#b8ab9b", moss: "#8dbf93", lake: "#8cc1de", honey: "#eabf5f", honeyInk: "#f0cd7c", brick: "#ef8f74", line: "#362f28",
+  wall: "#948d84", floor: "#1d1c1a", paper: "#1f1e1c", grid: "#2a2927", gridMajor: "#353431",
+  ink: "#ece7e0", inkMuted: "#aaa39a", moss: "#8dbf93", lake: "#8cc1de", honey: "#eabf5f", honeyInk: "#f0cd7c", brick: "#ef8f74", line: "#33312e",
   roomFill: {
-    bedroom: "#3a2b20", bath: "#1f3340", kitchen: "#3d3019", living: "#2b2520", dining: "#2b2520", office: "#25372a",
-    closet: "#2e2822", laundry: "#21343a", hall: "#2b2520", entry: "#2b2520", garage: "#2a2622", other: "#2b2520",
+    bedroom: "#302a26", bath: "#222c32", kitchen: "#302c22", living: "#282725", dining: "#282725", office: "#242d26",
+    closet: "#262523", laundry: "#222d2f", hall: "#282725", entry: "#282725", garage: "#242422", other: "#282725",
   },
-  labelBg: "rgba(36,32,27,0.88)", labelBgImage: "rgba(36,32,27,0.9)", labelEdge: "rgba(255,255,255,0.10)", labelShadow: "#000",
-  gap: "#24201b", gapImage: "rgba(36,32,27,0.7)", windowFill: "#1f3340", windowLine: "#8cc1de",
-  fixtureFill: "#2e2822", fixtureFillImage: "rgba(36,32,27,0.6)",
-  rug: "rgba(74,58,45,0.55)",
+  labelBg: "rgba(31,30,28,0.9)", labelBgImage: "rgba(31,30,28,0.92)", labelEdge: "rgba(255,255,255,0.09)", labelShadow: "#000",
+  gap: "#1f1e1c", gapImage: "rgba(31,30,28,0.75)", windowFill: "#22282b", windowLine: "#7fa9c0",
+  fixtureFill: "#2c2b29", fixtureFillImage: "rgba(31,30,28,0.6)",
+  rug: "rgba(110,98,86,0.30)",
   status: {
-    existing: { fill: "rgba(91,84,75,0.65)", stroke: "#a99b88" },
-    planned: { fill: "rgba(140,193,222,0.20)", stroke: "#8cc1de" },
-    "to-buy": { fill: "rgba(234,191,95,0.26)", stroke: "#eabf5f" },
+    existing: { fill: "rgba(120,115,108,0.40)", stroke: "#8f8980" },
+    planned: { fill: "rgba(140,193,222,0.16)", stroke: "#7fb3d1" },
+    "to-buy": { fill: "rgba(234,191,95,0.20)", stroke: "#d6ae58" },
   },
-  blockedFill: "rgba(239,143,116,0.16)", okFill: "rgba(141,191,147,0.16)",
+  blockedFill: "rgba(239,143,116,0.16)", selectFill: "rgba(140,193,222,0.12)", okFill: "rgba(141,191,147,0.16)",
   swatchEdge: "rgba(255,255,255,0.35)", shadow: "#000",
   font, mono,
 };

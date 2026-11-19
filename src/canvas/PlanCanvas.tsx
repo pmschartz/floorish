@@ -1,10 +1,10 @@
 import type Konva from "konva";
 import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
 import { Group, Image as KImage, Layer, Line, Rect, Stage, Transformer } from "react-konva";
-import type { Point } from "../../shared/schemas";
+import type { Item, Point } from "../../shared/schemas";
 import { ALL_ENTRIES, clearancesFor, PASSIVE_CATEGORIES } from "../catalog/furniture";
 import type { Issue } from "../checks/layoutChecks";
-import { clearanceZone } from "../model/geometry";
+import { clearanceZone, itemCorners } from "../model/geometry";
 import { formatLength } from "../model/units";
 import { effectivePpi, usePlan } from "../state/planStore";
 import { CalibrateDialog } from "./CalibrateTool";
@@ -41,8 +41,13 @@ export function PlanCanvas({ issues }: { issues: Issue[] }) {
   const tool = usePlan((s) => s.tool);
   const units = usePlan((s) => s.units);
   const selectedItemId = usePlan((s) => s.selectedItemId);
+  const selectedIds = usePlan((s) => s.selectedItemIds);
   const selectedRoomId = usePlan((s) => s.selectedRoomId);
-  const { select, updateItem, addItem, addRoom, calibrate, setTool } = usePlan.getState();
+  const showRoomLabels = usePlan((s) => s.showRoomLabels);
+  const showItemLabels = usePlan((s) => s.showItemLabels);
+  const { select, updateItem, addItem, addRoom, calibrate, setTool, pickItem, selectItems, moveItems } = usePlan.getState();
+  const selectedSet = useMemo(() => new Set(selectedIds), [selectedIds]);
+  const multi = selectedIds.length > 1;
 
   const ppi = effectivePpi(plan);
   const selectedRoom = plan.rooms.find((r) => r.id === selectedRoomId) ?? null;
@@ -128,10 +133,102 @@ export function PlanCanvas({ issues }: { issues: Issue[] }) {
     const tr = trRef.current;
     const stage = stageRef.current;
     if (!tr || !stage) return;
-    const node = selectedItemId && tool === "select" ? stage.findOne(`#item-${selectedItemId}`) : null;
-    tr.nodes(node ? [node] : []);
+    const nodes = tool === "select" ? selectedIds.map((id) => stage.findOne(`#item-${id}`)).filter((n): n is Konva.Node => !!n) : [];
+    tr.nodes(nodes);
     tr.getLayer()?.batchDraw();
-  }, [selectedItemId, tool, plan.items]);
+  }, [selectedIds, tool, plan.items]);
+
+  // ---- Selecting several pieces: a drag box, and dragging a group together ----
+  const marquee = useRef<{ start: Point; additive: boolean } | null>(null);
+  const [box, setBox] = useState<{ a: Point; b: Point } | null>(null);
+  /** A drag box just ended: ignore the click that follows it (it isn't a click on a room). */
+  const suppressClick = useRef(false);
+  const groupDrag = useRef<{ id: string; x: number; y: number; others: Array<{ node: Konva.Node; x: number; y: number }> } | null>(null);
+  const middlePan = useRef<{ x: number; y: number; vx: number; vy: number } | null>(null);
+
+  const isOnItem = (t: Konva.Node) => !!(t.findAncestor?.(".item", true) || t.getParent()?.className === "Transformer" || t.className === "Transformer");
+
+  const onMouseDown = (e: Konva.KonvaEventObject<MouseEvent>) => {
+    if (e.evt.button === 1) {
+      // Middle mouse: pan.
+      e.evt.preventDefault();
+      middlePan.current = { x: e.evt.clientX, y: e.evt.clientY, vx: view.x, vy: view.y };
+      return;
+    }
+    if (e.evt.button !== 0 || tool !== "select" || spaceDown || isOnItem(e.target)) return;
+    const p = pointer();
+    if (p) marquee.current = { start: p, additive: e.evt.shiftKey || e.evt.metaKey };
+  };
+
+  // Drag box and middle-mouse pan follow the mouse anywhere, and end anywhere.
+  useEffect(() => {
+    const move = (e: MouseEvent) => {
+      const mp = middlePan.current;
+      if (mp) {
+        setView((v) => ({ ...v, x: mp.vx + e.clientX - mp.x, y: mp.vy + e.clientY - mp.y }));
+        return;
+      }
+      const m = marquee.current;
+      if (!m) return;
+      stageRef.current?.setPointersPositions(e);
+      const p = pointer();
+      if (!p) return;
+      if (box || Math.hypot(p.x - m.start.x, p.y - m.start.y) * view.scale > 4) setBox({ a: m.start, b: p });
+    };
+    const up = () => {
+      middlePan.current = null;
+      const m = marquee.current;
+      marquee.current = null;
+      if (!m || !box || !ppi) { setBox(null); return; }
+      const minX = Math.min(box.a.x, box.b.x) / ppi, maxX = Math.max(box.a.x, box.b.x) / ppi;
+      const minY = Math.min(box.a.y, box.b.y) / ppi, maxY = Math.max(box.a.y, box.b.y) / ppi;
+      // Furniture the box touches (doors, windows and fixtures are part of the building).
+      const hit = (usePlan.getState().plan?.items ?? []).filter((i) => {
+        if (isOpening(i.shape)) return false;
+        const c = itemCorners(i);
+        const xs = c.map((q) => q.x), ys = c.map((q) => q.y);
+        return Math.max(...xs) >= minX && Math.min(...xs) <= maxX && Math.max(...ys) >= minY && Math.min(...ys) <= maxY;
+      });
+      selectItems(hit.map((i) => i.id), m.additive);
+      setBox(null);
+      suppressClick.current = true;
+      setTimeout(() => { suppressClick.current = false; }, 0);
+    };
+    window.addEventListener("mousemove", move);
+    window.addEventListener("mouseup", up);
+    return () => { window.removeEventListener("mousemove", move); window.removeEventListener("mouseup", up); };
+  });
+
+  /** Dragging one of several selected pieces carries the others along. */
+  const onItemsDragStart = (e: Konva.KonvaEventObject<DragEvent>) => {
+    const t = e.target;
+    const id = t.id().replace(/^item-/, "");
+    const { selectedItemIds } = usePlan.getState();
+    if (t.name() !== "item" || selectedItemIds.length < 2 || !selectedItemIds.includes(id)) { groupDrag.current = null; return; }
+    const stage = stageRef.current!;
+    groupDrag.current = {
+      id, x: t.x(), y: t.y(),
+      others: selectedItemIds.filter((o) => o !== id).map((o) => stage.findOne(`#item-${o}`)).filter((n): n is Konva.Node => !!n).map((node) => ({ node, x: node.x(), y: node.y() })),
+    };
+  };
+  const onItemsDragMove = (e: Konva.KonvaEventObject<DragEvent>) => {
+    const g = groupDrag.current;
+    if (!g || e.target.id() !== `item-${g.id}`) return;
+    const dx = e.target.x() - g.x, dy = e.target.y() - g.y;
+    for (const o of g.others) o.node.position({ x: o.x + dx, y: o.y + dy });
+  };
+  /** A piece moved: if it's part of a group, the whole group moves by the same amount, as one step. */
+  const onItemChange = (id: string, patch: Partial<Item>) => {
+    const { selectedItemIds, plan: p } = usePlan.getState();
+    const it = p?.items.find((i) => i.id === id);
+    const isMove = "x" in patch && "y" in patch && !("rotation" in patch) && !("width" in patch);
+    if (it && isMove && selectedItemIds.length > 1 && selectedItemIds.includes(id)) {
+      groupDrag.current = null;
+      moveItems(selectedItemIds, (patch.x as number) - it.x, (patch.y as number) - it.y);
+      return;
+    }
+    updateItem(id, patch);
+  };
 
   // Keyboard: space to pan, Enter/Escape for drafts, shift for ortho/free-rotate.
   useEffect(() => {
@@ -188,7 +285,7 @@ export function PlanCanvas({ issues }: { issues: Issue[] }) {
   };
 
   const onStageClick = (e: Konva.KonvaEventObject<MouseEvent>) => {
-    if (e.evt.button !== 0 || spaceDown) return;
+    if (e.evt.button !== 0 || spaceDown || suppressClick.current) return;
     const raw = pointer();
     if (!raw) return;
 
@@ -322,12 +419,13 @@ export function PlanCanvas({ issues }: { issues: Issue[] }) {
         scaleY={s}
         x={view.x}
         y={view.y}
-        draggable={panMode || tool === "select"}
+        draggable={panMode}
         onDragEnd={(e) => {
           if (e.target === stageRef.current) setView((v) => ({ ...v, x: e.target.x(), y: e.target.y() }));
         }}
         onWheel={onWheel}
         onClick={onStageClick}
+        onMouseDown={onMouseDown}
         onDblClick={() => tool === "room" && draft.length >= 3 && finishRoom(draft)}
         onMouseMove={onMouseMove}
         onMouseLeave={() => setHover(null)}
@@ -345,16 +443,16 @@ export function PlanCanvas({ issues }: { issues: Issue[] }) {
           <Rect name="bg" x={-1e5} y={-1e5} width={2e5} height={2e5} fill="transparent" />
           {ppi && !clean && (
             <RoomLayer rooms={shownRooms} ppi={ppi} stageScale={s} units={units} selectedRoomId={selectedRoomId}
-              interactive={tool === "select"} onSelect={(id) => select({ room: id })} />
+              interactive={tool === "select"} onSelect={(id) => { if (!suppressClick.current) select({ room: id }); }} />
           )}
           {ppi && clean && (
             <CleanRoomLayer rooms={shownRooms} ppi={ppi} stageScale={s} units={units} selectedRoomId={selectedRoomId}
-              interactive={tool === "select"} onSelect={(id) => select({ room: id })} wallThickness={plan.wallThickness} />
+              interactive={tool === "select"} onSelect={(id) => { if (!suppressClick.current) select({ room: id }); }} wallThickness={plan.wallThickness} />
           )}
           {ppi && <PaintBands rooms={shownRooms} ppi={ppi} stageScale={s} />}
         </Layer>
-        <Layer>
-          {ppi && selected && !PASSIVE_CATEGORIES.has(selected.category) && (
+        <Layer onDragStart={onItemsDragStart} onDragMove={onItemsDragMove}>
+          {ppi && selected && !multi && !PASSIVE_CATEGORIES.has(selected.category) && (
             <Group listening={false}>
               {clearancesFor(selected).map((r) => {
                 const blocked = issues.some((i) => i.id === `clearance:${selected.id}:${r.side}`);
@@ -375,17 +473,23 @@ export function PlanCanvas({ issues }: { issues: Issue[] }) {
                 ppi={ppi}
                 stageScale={s}
                 units={units}
-                selected={it.id === selectedItemId}
+                selected={selectedSet.has(it.id)}
                 issue={issueByItem.get(it.id) ?? null}
                 draggable={tool === "select" && !spaceDown}
                 clean={clean}
-                onSelect={(id) => tool === "select" && select({ item: id })}
-                onChange={updateItem}
+                onSelect={(id, additive) => tool === "select" && pickItem(id, additive)}
+                onClickItem={(id, additive) => {
+                  // A plain click on one of several selected pieces narrows the selection to it.
+                  if (tool === "select" && !additive && usePlan.getState().selectedItemIds.length > 1) selectItems([id], false);
+                }}
+                onChange={onItemChange}
+                labels={showItemLabels}
               />
             ))}
           <Transformer
             ref={trRef}
-            rotateEnabled
+            rotateEnabled={!multi}
+            resizeEnabled={!multi}
             rotationSnaps={shiftDown ? [] : Array.from({ length: 24 }, (_, i) => i * 15)}
             rotationSnapTolerance={7}
             keepRatio={false}
@@ -399,7 +503,11 @@ export function PlanCanvas({ issues }: { issues: Issue[] }) {
           />
         </Layer>
         <Layer listening={false}>
-          {ppi && (
+          {box && (
+            <Rect x={Math.min(box.a.x, box.b.x)} y={Math.min(box.a.y, box.b.y)} width={Math.abs(box.b.x - box.a.x)} height={Math.abs(box.b.y - box.a.y)}
+              fill={PLAN.selectFill} stroke={PLAN.lake} strokeWidth={1 / s} />
+          )}
+          {ppi && showRoomLabels && (
             <RoomLabels rooms={shownRooms} items={plan.items} ppi={ppi} stageScale={s} units={units} clean={clean}
               selectedRoomId={selectedRoomId} />
           )}

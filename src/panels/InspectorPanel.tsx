@@ -2,7 +2,7 @@ import { useState } from "react";
 import { FIXTURE_KINDS, ITEM_STATUSES, ROOM_TYPES, type FixtureKind, type Item, type Room } from "../../shared/schemas";
 import { CATEGORIES, clearancesFor, FIXTURE_LABEL, OPENING_CATEGORIES, openingKind } from "../catalog/furniture";
 import { bbox, polygonArea } from "../model/geometry";
-import { formatArea, formatLength } from "../model/units";
+import { formatArea, formatDims, formatLength } from "../model/units";
 import { usePlan } from "../state/planStore";
 import { LengthInput } from "./LengthInput";
 import { RoomWalls } from "./RoomWalls";
@@ -21,12 +21,56 @@ export function InspectorPanel() {
   const plan = usePlan((s) => s.plan)!;
   const itemId = usePlan((s) => s.selectedItemId);
   const roomId = usePlan((s) => s.selectedRoomId);
+  const ids = usePlan((s) => s.selectedItemIds);
   const item = plan.items.find((i) => i.id === itemId);
   const room = plan.rooms.find((r) => r.id === roomId);
 
+  if (ids.length > 1) return <MultiInspector ids={ids} />;
   if (item) return <ItemInspector key={item.id} item={item} />;
   if (room) return <RoomInspector key={room.id} room={room} />;
   return <PlanOverview />;
+}
+
+/** Several pieces selected: what they are, their status together, and duplicate or delete them all. */
+function MultiInspector({ ids }: { ids: string[] }) {
+  const plan = usePlan((s) => s.plan)!;
+  const units = usePlan((s) => s.units);
+  const { updateItems, duplicateItems, removeItems, selectItems } = usePlan.getState();
+  const sel = new Set(ids);
+  const items = plan.items.filter((i) => sel.has(i.id));
+  const statuses = new Set(items.map((i) => i.status));
+  const common = statuses.size === 1 ? items[0]?.status : null;
+  return (
+    <div className="inspector multi-inspector">
+      <div className="room-head">
+        <h2 className="multi-title">{items.length} pieces selected</h2>
+        <p className="room-size muted small">Drag any of them to move them together. Shift-click to add or remove one.</p>
+      </div>
+      <div className="segmented" role="group" aria-label="Status of all selected pieces">
+        {ITEM_STATUSES.map((s) => (
+          <button key={s} className={common === s ? `on status-${s}` : ""} onClick={() => updateItems(ids, { status: s })}>
+            {STATUS_TEXT[s]}
+          </button>
+        ))}
+      </div>
+      {!common && <p className="muted small">They have different statuses; pick one to set them all.</p>}
+      <ul className="pick-list">
+        {items.map((i) => (
+          <li key={i.id}>
+            <button onClick={() => selectItems([i.id], false)} title="Select just this piece">
+              <span className="dot-blank" />
+              <span className="pick-name">{i.label || i.category}</span>
+              <span className="pick-meta mono">{formatDims(i.width, i.depth, units)}</span>
+            </button>
+          </li>
+        ))}
+      </ul>
+      <div className="row">
+        <button onClick={() => duplicateItems(ids)}>Duplicate all</button>
+        <button className="danger" onClick={() => removeItems(ids)}>Delete all</button>
+      </div>
+    </div>
+  );
 }
 
 /** The kinds of door and opening an item can be switched between. */

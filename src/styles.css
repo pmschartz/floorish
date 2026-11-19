@@ -486,3 +486,26 @@ input.floor-tab.editing { width: 120px; font-weight: 600; border-color: var(--la
 .tool-group button.on:hover:not(:disabled), .floor-tab.on:hover:not(:disabled), .room-style-seg button.on:hover, .theme-toggle button.on:hover:not(:disabled), .room-walls .seg button.on:hover:not(:disabled) {
   background: var(--surface-raised); color: var(--ink); box-shadow: var(--shadow-sm);
 }
+
+/* ---- Tools dock: floating at the bottom of the canvas ---- */
+.tool-dock {
+  position: absolute; left: 50%; bottom: 12px; transform: translateX(-50%); z-index: 5;
+  display: flex; gap: 2px; padding: 4px; background: var(--surface-raised); border: 1px solid var(--line);
+  border-radius: 12px; box-shadow: var(--shadow-md);
+}
+.tool-dock button { width: 38px; height: 34px; padding: 0; display: grid; place-items: center; border-color: transparent; background: transparent; color: var(--ink-muted); }
+.tool-dock button:hover:not(:disabled) { background: var(--surface-sunken); border-color: transparent; color: var(--ink); }
+.tool-dock button.on, .tool-dock button.on:hover:not(:disabled) { background: var(--moss); color: var(--on-moss); }
+
+/* ---- View menu: check marks ---- */
+.view-menu button { display: flex; align-items: center; gap: 8px; }
+.menu-check { width: 16px; display: inline-grid; place-items: center; color: var(--moss); flex: none; }
+
+.multi-title { font-size: 20px; grid-column: 1 / -1; }
+.multi-inspector .room-head .room-size { font-family: var(--font-sans); font-size: 12px; }
+/* Evening: the canvas surround is a neutral near-black, so the plan doesn't sit in brown. */
+:root[data-theme="dark"] .canvas-wrap { background: #141413; }
+/* Home: appearance toggle as icons */
+.theme-toggle button { width: 32px; height: 28px; padding: 0; display: grid; place-items: center; }
+.view-menu .menu-note { margin: 2px 8px 2px 32px; }
+.view-menu button svg:not(.menu-check svg) { color: var(--ink-muted); }

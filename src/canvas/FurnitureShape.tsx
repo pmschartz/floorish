@@ -18,8 +18,13 @@ interface Props {
   draggable: boolean;
   /** Clean view: draw openings as gaps in the wall, like a finished floor plan. */
   clean?: boolean;
-  onSelect: (id: string) => void;
+  /** Pressed on the piece; `additive` when shift or ⌘ is held. */
+  onSelect: (id: string, additive: boolean) => void;
+  /** Clicked without dragging (to narrow a group selection to this piece). */
+  onClickItem?: (id: string, additive: boolean) => void;
   onChange: (id: string, patch: Partial<Item>) => void;
+  /** Show the name and size on the piece (when it's big enough). */
+  labels?: boolean;
 }
 
 /** Outline in canvas pixels for L/U shapes. */
@@ -27,7 +32,7 @@ function outlinePx(item: Item, ppi: number): number[] {
   return outlineLocal(item.shape, item.width, item.depth).flatMap((p) => [p.x * ppi, p.y * ppi]);
 }
 
-function FurnitureShapeInner({ item, ppi, stageScale, units, selected, issue, draggable, clean, onSelect, onChange }: Props) {
+function FurnitureShapeInner({ item, ppi, stageScale, units, selected, issue, draggable, clean, onSelect, onClickItem, onChange, labels = true }: Props) {
   const w = item.width * ppi;
   const d = item.depth * ppi;
   const colors = PLAN.status[item.status];
@@ -61,7 +66,7 @@ function FurnitureShapeInner({ item, ppi, stageScale, units, selected, issue, dr
   const upsideDown = turn > 90 && turn < 270;
   // L/U shapes have an open middle, so the label goes in the back run of seats.
   const labelH = item.shape === "L" || item.shape === "U" ? armDepth(item.shape, item.width, item.depth) * ppi : d;
-  const showLabel = Math.min(w, labelH) * stageScale > 22;
+  const showLabel = labels && Math.min(w, labelH) * stageScale > 22;
   const name = item.label || item.category || "Unlabeled";
 
   let body: React.ReactNode;
@@ -218,10 +223,14 @@ function FurnitureShapeInner({ item, ppi, stageScale, units, selected, issue, dr
       draggable={draggable}
       onMouseDown={(e) => {
         e.cancelBubble = true;
-        onSelect(item.id);
+        if (e.evt.button !== 0) return;
+        onSelect(item.id, e.evt.shiftKey || e.evt.metaKey);
       }}
-      onTap={() => onSelect(item.id)}
-      onDragStart={() => onSelect(item.id)}
+      onClick={(e) => {
+        e.cancelBubble = true;
+        if (e.evt.button === 0) onClickItem?.(item.id, e.evt.shiftKey || e.evt.metaKey);
+      }}
+      onTap={() => onSelect(item.id, false)}
       onDragEnd={handleDragEnd}
       onTransformEnd={handleTransformEnd}
     >
