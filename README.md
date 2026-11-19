@@ -46,7 +46,7 @@ People furnishing or rearranging a home they already have a floor plan for: new 
 | --- | --- | --- |
 | P0 | Import a floor plan and set its scale | Upload PNG, JPG, SVG or PDF; click both ends of a known wall to calibrate. Or start on a blank grid. |
 | P0 | Turn the plan into rooms, doors and windows | **Auto-detect** has Claude read room names, doors (with hinge and swing), windows and printed dimensions; the app snaps them to the walls it measures in the image and standardizes wall thickness. You review before anything is added. |
-| P0 | Place furniture at real size | A library of standard pieces (bedroom, living, dining, office, gym, plants, garage, rugs, doors and windows) plus custom shapes. Every piece is marked as *have it*, *planned* or *to buy*. |
+| P0 | Place furniture at real size | A library of standard pieces (bedroom, living, dining, office, gym, plants, garage, rugs, doors and windows) plus custom shapes. Every piece is marked as *have it*, *planned* or *to buy*. Select several (drag a box or shift-click) to move, duplicate or delete them together. |
 | P0 | Catch layout problems | Live checks for overlaps, pieces through walls, door swings and clearances (bed sides, drawers, chair pull-back, car doors), measured to walls and furniture, not to open sides between rooms. |
 | P1 | Suggest what a room is missing | **What's missing** sends the room's shape, contents and style to Claude and adds a suggestion to the plan in one click, in an open spot. |
 | P1 | Shop for a piece that fits | **Shop for this** has Claude search the web for real products that fit the shape, your style and palette, and labels each one *Fits*, *Tight* or *Too big* from its listed dimensions. |
@@ -54,6 +54,7 @@ People furnishing or rearranging a home they already have a floor plan for: new 
 | P1 | Style at house and room level | A shared **House style** (styles, Sherwin-Williams palette, things to avoid, budget), and per-room style: "what's this room for?" plus the room's own styles. |
 | P1 | Multi-floor homes | A house has floors (tabs in the toolbar) that share one style; Claude sees the rooms on every floor. |
 | P2 | Paint planning | Each room's walls, accent wall, trim and ceiling as Sherwin-Williams colors. |
+| P2 | Light and dark | Light, dark, or follow the system setting, from the home page or the View menu. |
 | P2 | Export | The plan as PNG, and a shopping list with paint as Markdown or CSV. |
 
 ### Success measures
