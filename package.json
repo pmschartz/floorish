@@ -12,9 +12,9 @@
     "test": "vitest run"
   },
   "dependencies": {
-    "@anthropic-ai/sdk": "^1.10.0",
+    "@anthropic-ai/sdk": "^1.11.0",
     "express": "^5.3.0",
-    "konva": "^10.9.1",
+    "konva": "^10.10.0",
     "multer": "^2.5.0",
     "nanoid": "^6.0.2",
     "pdfjs-dist": "^6.5.438",
@@ -36,6 +36,6 @@
     "tsx": "^4.23.15",
     "typescript": "^7.0.2",
     "vite": "^8.3.8",
-    "vitest": "^5.1.0"
+    "vitest": "^5.1.1"
   }
 }
